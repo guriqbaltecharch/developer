@@ -29,6 +29,7 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('/teams', TeamController::class);
     Route::apiResource('/roles', RoleController::class);
 
+
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Projects API
@@ -43,10 +44,9 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/projects/{id}', [ProjectController::class, 'update']);
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
     Route::post('/assign-project-manager', [ProjectController::class, 'assignProjectToManager']);
+    Route::post('/assign-project-managers', [ProjectController::class, 'getProjectEmployee']);
     Route::get('/assigned-projects', [ProjectController::class, 'getAssignedProjects']);
     Route::post('/assign-project-employee', [ProjectController::class, 'assignProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
-	Route::get('/assigned-all-projects', [ProjectController::class, 'getAssignedAllProjects']);
-	Route::get('/assigned-projectto-employee', [ProjectController::class, 'getAssignedprojecttoEmployee']);
 
 });

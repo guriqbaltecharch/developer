@@ -74,7 +74,6 @@ class ProjectController extends Controller
 
     public function getUserProjects()
     {
-		dd("test");
         $user = auth()->user();
         $projects = $user->assignedProjects()->with('client')->get();
 
@@ -179,11 +178,9 @@ public function getAssignedAllProjects()
     return ApiResponse::success('Projects fetched successfully', $projects);
 }
 
-// Projects with Current project manager to employe
-public function getAssignedprojecttoEmployee()
+public function getProjectEmployee()
 {
-	dd("test");
-	$user = auth()->user();
+    return response()->json(['message' => 'Test']);
 }
 
 }
