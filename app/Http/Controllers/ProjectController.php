@@ -178,9 +178,18 @@ public function getAssignedAllProjects()
     return ApiResponse::success('Projects fetched successfully', $projects);
 }
 
-public function getProjectEmployee()
+/*public function getProjectEmployee()
 {
-    return response()->json(['message' => 'Test']);
-}
+	$user = auth()->user();
+	$projects = Project::where('project_manager_id', $user->id)
+        ->with([
+            'client:id,name', // Get only client id & name
+            'projectManager:id,name' // Get project manager id & name
+        ])
+        ->get(['id', 'project_name', 'client_id']); // Fetch only required fields
+
+    return ApiResponse::success('Projects fetched successfully', $projects);
+    //return response()->json(['message' => 'Test']);
+}*/
 
 }

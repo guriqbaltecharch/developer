@@ -8,6 +8,7 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\PerformaSheetController;
 
 
 // Route::get('/user', function (Request $request) {
@@ -44,9 +45,14 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/projects/{id}', [ProjectController::class, 'update']);
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
     Route::post('/assign-project-manager', [ProjectController::class, 'assignProjectToManager']);
-    Route::post('/assign-project-managers', [ProjectController::class, 'getProjectEmployee']);
+    //Route::post('/assign-project-managers', [ProjectController::class, 'getProjectEmployee']);
+    Route::get('/assigned-all-projects', [ProjectController::class, 'getAssignedAllProjects']);
     Route::get('/assigned-projects', [ProjectController::class, 'getAssignedProjects']);
     Route::post('/assign-project-employee', [ProjectController::class, 'assignProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
+	
+	// Performa API
+	Route::post('/add-performa-sheets', [PerformaSheetController::class, 'addPerformaSheets']);
+	//Route::get('/get-performa-sheet', [PerformaSheetController::class, 'getPerformaSheet']);
 
 });

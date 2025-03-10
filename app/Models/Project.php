@@ -25,6 +25,11 @@ class Project extends Model
     {
         return $this->belongsTo(User::class, 'project_manager_id');
     }
+	
+	public function projectClient()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
 
     public function assignedBy()
     {

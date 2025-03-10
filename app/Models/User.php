@@ -89,4 +89,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsToMany(Project::class, 'project_user');
     }
+	
+	public function projectManager()
+    {
+        return $this->hasMany(Project::class, 'project_manager_id');
+    }
 }
