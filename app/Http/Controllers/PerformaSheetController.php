@@ -20,7 +20,6 @@ class PerformaSheetController extends Controller
         $validatedData = $request->validate([
             //'user_id' => 'required|exists:users,id',
             'data' => 'required|array',
-            'data.*.client_id' => 'required|exists:clients,id',
             'data.*.project_id' => 'required|exists:projects,id',
 			'data.*.project_id' => [
         'required',
@@ -28,9 +27,10 @@ class PerformaSheetController extends Controller
             $query->where('user_id', $user->id);
         })
     ],
-            'data.*.date_time' => 'required|date_format:Y-m-d H:i:s',
+            'data.*.date' => 'required|date_format:Y-m-d',
+            'data.*.time' => 'required|date_format:H:i',
+			'data.*.work_type' => 'required|string|max:255',
             'data.*.activity_type' => 'required|string|max:255',
-            'data.*.work_type' => 'required|string|max:255',
             'data.*.narration' => 'nullable|string' // ✅ Added narration as a long text field
         ]);
 
