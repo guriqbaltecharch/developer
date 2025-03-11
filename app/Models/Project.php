@@ -46,4 +46,9 @@ class Project extends Model
     {
         return $this->belongsToMany(User::class, 'project_user');
     }
+	
+	public function performaSheets()
+{
+    return $this->hasMany(PerformaSheet::class, 'project_id', 'id');
+}
 }

@@ -12,11 +12,16 @@ class PerformaSheet extends Model
     protected $fillable = ['user_id', 'data'];
 
     protected $casts = [
-        'data' => 'array', // Automatically decode JSON in Laravel
+        'data' => 'array', // Decode JSON automatically
     ];
 
     public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+{
+    return $this->belongsTo(User::class, 'user_id', 'id');
+}
+
+public function project()
+{
+    return $this->belongsTo(Project::class, 'project_id', 'id');
+}
 }
