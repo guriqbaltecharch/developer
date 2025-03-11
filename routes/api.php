@@ -56,6 +56,7 @@ Route::middleware('auth:api')->group(function () {
 	Route::post('/get-approval-performa-sheets', [PerformaSheetController::class, 'getApprovalPerformaSheets']);
 	Route::middleware('auth:api')->group(function () {
     Route::get('/get-performa-sheet', [PerformaSheetController::class, 'getUserPerformaSheets']);
+    Route::get('/get-all-performa-sheets', [PerformaSheetController::class, 'getAllPerformaSheets']);
 });
 
 });

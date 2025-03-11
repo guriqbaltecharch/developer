@@ -95,7 +95,7 @@ class PerformaSheetController extends Controller
 			$dataArray['project_name'] = $projectName;
 			$dataArray['client_name'] = $clientName;
 			$dataArray['deadline'] = $deadline;
-$dataArray['status'] = $sheet->status ?? 'pending';
+			$dataArray['status'] = $sheet->status ?? 'pending';
 			$structuredData['sheets'][] = $dataArray;
 		}
 
@@ -109,6 +109,60 @@ $dataArray['status'] = $sheet->status ?? 'pending';
 		return response()->json([
 			'success' => true,
 			'message' => 'Performa Sheets fetched successfully',
+			'data' => $structuredData
+		]);
+	}
+	
+	public function getAllPerformaSheets()
+	{
+		// Fetch all Performa Sheets with user details
+		$sheets = PerformaSheet::with('user:id,name')->get();
+
+		$structuredData = [];
+
+		foreach ($sheets as $sheet) {
+			$dataArray = json_decode($sheet->data, true);
+
+			if (!is_array($dataArray)) {
+				continue; // Skip if data is not valid JSON
+			}
+
+			// Extract project_id
+			$projectId = $dataArray['project_id'] ?? null;
+			
+			// Fetch project details (project_name, client_name, deadline)
+			$project = $projectId ? Project::with('client:id,name')->find($projectId) : null;
+			$projectName = $project->project_name ?? 'No Project Found';
+			$clientName = $project->client->name ?? 'No Client Found';
+			$deadline = $project->deadline ?? 'No Deadline Set';
+
+			// Remove user_id and user_name from sheet data (No need to repeat)
+			unset($dataArray['user_id'], $dataArray['user_name']);
+
+			// Add project_name, client_name, deadline, and status to sheet data
+			$dataArray['project_name'] = $projectName;
+			$dataArray['client_name'] = $clientName;
+			$dataArray['deadline'] = $deadline;
+			$dataArray['status'] = $sheet->status ?? 'pending';
+
+			// Group by user ID to avoid duplicate entries
+			if (!isset($structuredData[$sheet->user_id])) {
+				$structuredData[$sheet->user_id] = [
+					'user_id' => $sheet->user_id,
+					'user_name' => $sheet->user->name,
+					'sheets' => []
+				];
+			}
+
+			$structuredData[$sheet->user_id]['sheets'][] = $dataArray;
+		}
+
+		// Convert associative array to indexed array
+		$structuredData = array_values($structuredData);
+
+		return response()->json([
+			'success' => true,
+			'message' => 'All Performa Sheets fetched successfully',
 			'data' => $structuredData
 		]);
 	}
