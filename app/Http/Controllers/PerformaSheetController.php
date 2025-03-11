@@ -95,7 +95,7 @@ class PerformaSheetController extends Controller
 			$dataArray['project_name'] = $projectName;
 			$dataArray['client_name'] = $clientName;
 			$dataArray['deadline'] = $deadline;
-
+$dataArray['status'] = $sheet->status ?? 'pending';
 			$structuredData['sheets'][] = $dataArray;
 		}
 
