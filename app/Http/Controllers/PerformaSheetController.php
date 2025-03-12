@@ -60,7 +60,6 @@ class PerformaSheetController extends Controller
 	public function getUserPerformaSheets()
 	{
 		$user = auth()->user(); // Get logged-in user
-
 		// Fetch only logged-in user's sheets
 		$sheets = PerformaSheet::with('user:id,name')
 					->where('user_id', $user->id) // Filter by logged-in user
@@ -144,10 +143,13 @@ class PerformaSheetController extends Controller
 			$dataArray['client_name'] = $clientName;
 			$dataArray['deadline'] = $deadline;
 			$dataArray['status'] = $sheet->status ?? 'pending';
+			// Use database ID as serial number
+			$dataArray['id'] = $sheet->id; 
 
 			// Group by user ID to avoid duplicate entries
 			if (!isset($structuredData[$sheet->user_id])) {
 				$structuredData[$sheet->user_id] = [
+					'user_id' => $sheet->user_id,
 					'user_id' => $sheet->user_id,
 					'user_name' => $sheet->user->name,
 					'sheets' => []
