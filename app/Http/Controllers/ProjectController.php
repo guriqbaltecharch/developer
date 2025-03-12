@@ -163,8 +163,7 @@ public function getAssignedAllProjects()
     $user = auth()->user();
     // Fetch all projects with related client, assignedBy, assignedUsers, and projectManager
     $projects = Project::with('client', 'assignedBy', 'assignedUsers:id,name,email', 'projectManager:id,name')->get();
-
-    // Format the response to ensure proper structure
+	// Format the response to ensure proper structure
     // Remove pivot from assigned users
     $projects = $projects->map(function ($project) {
         return [
@@ -182,8 +181,7 @@ public function getAssignedAllProjects()
                 : $project->assignedUsers
         ];
     });
-
-    return ApiResponse::success('Projects fetched successfully', $projects);
+	return ApiResponse::success('Projects fetched successfully', $projects);
 }
 
 /*public function getProjectEmployee()
