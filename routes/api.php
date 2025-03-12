@@ -48,6 +48,7 @@ Route::middleware('auth:api')->group(function () {
     //Route::post('/assign-project-managers', [ProjectController::class, 'getProjectEmployee']);
     Route::get('/assigned-all-projects', [ProjectController::class, 'getAssignedAllProjects']);
     Route::get('/assigned-projects', [ProjectController::class, 'getAssignedProjects']);
+    Route::get('/get-projectof-employee-assignby-projectmanager', [ProjectController::class, 'getProjectofEmployeeAssignbyProjectManager']);
     Route::post('/assign-projectmanager-projectto-employee', [ProjectController::class, 'assignProjectManagerProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
     Route::get('/get-project-manager-employee', [ProjectController::class, 'getProjectManagerEmployee']);

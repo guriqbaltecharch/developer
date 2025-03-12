@@ -55,43 +55,90 @@ class ProjectController extends Controller
 	
 	public function assignProjectManagerProjectToEmployee(Request $request)
 	{
-		// ✅ Validate Request Data
-		$validatedData = $request->validate([
-			'project_id' => 'required|exists:projects,id',
-			'employee_ids' => 'required|array|min:1',
-			'employee_ids.*' => 'exists:users,id'
-		]);
-		$project = Project::find($validatedData['project_id']);
-		if (!$project) {
-			return ApiResponse::error('Invalid project_id. Project does not exist.', [], 404);
-		}
-		// ✅ Get Logged-in Project Manager ID
-			$projectManagerId = auth()->user()->id;
-		// ✅ Insert into `project_user` Table and Collect Inserted IDs
-			$insertedData = [];
-			try {
-			foreach ($validatedData['employee_ids'] as $employeeId) {
-				$insertedId = DB::table('project_user')->insertGetId([
-					'project_id' => $validatedData['project_id'],
-					'user_id' => $employeeId,
-					'created_at' => now(),
-					'updated_at' => now()
-				]);
+		 // ✅ Validate Request Data
+    $validatedData = $request->validate([
+        'project_id' => 'required|exists:projects,id',
+        'employee_ids' => 'required|array|min:1',
+        'employee_ids.*' => 'exists:users,id'
+    ]);
 
-				$insertedData[] = [
-					'id' => $insertedId,  // ✅ Inserted increment ID
-					'project_id' => $validatedData['project_id'],
-					'user_id' => $employeeId
-				];
-			}
-			} catch (\Exception $e) {
-				return ApiResponse::error('Database Error: ' . $e->getMessage(), [], 500);
-			}
-			// ✅ Return Response with Only Required Data
-				return ApiResponse::success('Project assigned successfully', [
-					'project_manager_id' => $projectManagerId, // ✅ Logged-in Project Manager ID
-					'data' => $insertedData // ✅ Inserted records with `id`, `project_id`, `user_id`
-				]);
+    // ✅ Fetch Project from Database
+    $project = Project::find($validatedData['project_id']);
+
+    if (!$project) {
+        return ApiResponse::error('Invalid project_id. Project does not exist.', [], 404);
+    }
+
+    // ✅ Get Logged-in Project Manager ID
+    $projectManagerId = auth()->user()->id;
+
+    // ✅ Insert into `project_user` Table (Avoiding Duplicates)
+    $insertedData = [];
+    $alreadyAssigned = [];
+
+    try {
+        foreach ($validatedData['employee_ids'] as $employeeId) {
+            // ✅ Check if the project is already assigned to this employee
+            $exists = DB::table('project_user')
+                ->where('project_id', $validatedData['project_id'])
+                ->where('user_id', $employeeId)
+                ->exists();
+
+            if ($exists) {
+                $alreadyAssigned[] = $employeeId; // ✅ Collect duplicate user_ids
+                continue; // ✅ Skip this user but process the rest
+            }
+
+            // ✅ Insert only if not exists
+            $insertedId = DB::table('project_user')->insertGetId([
+                'project_id' => $validatedData['project_id'],
+                'user_id' => $employeeId,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            $insertedData[] = [
+                'id' => $insertedId,  // ✅ Inserted increment ID
+                'project_id' => $validatedData['project_id'],
+                'user_id' => $employeeId
+            ];
+        }
+    } catch (\Exception $e) {
+        return ApiResponse::error('Database Error: ' . $e->getMessage(), [], 500);
+    }
+
+    // ✅ Prepare Response
+    $responseMessage = 'Project assigned successfully';
+    if (!empty($alreadyAssigned)) {
+        $responseMessage .= '. But these users were already assigned: ' . implode(', ', $alreadyAssigned);
+    }
+
+    return ApiResponse::success($responseMessage, [
+        'project_manager_id' => $projectManagerId, // ✅ Logged-in Project Manager ID
+        'data' => $insertedData // ✅ Inserted records with `id`, `project_id`, `user_id`
+    ]);
+	}
+	
+	public function getProjectofEmployeeAssignbyProjectManager()
+	{
+		// ✅ Get Logged-in Project Manager ID
+    $projectManagerId = auth()->user()->id;
+
+    // ✅ Fetch All Projects Assigned by This Project Manager
+    $projects = Project::where('project_manager_id', $projectManagerId)
+        ->with('assignedEmployees:id,name,email')
+        ->get(['id', 'project_name', 'client_id', 'deadline', 'project_manager_id']);
+
+    // ✅ If No Projects Found
+    if ($projects->isEmpty()) {
+        return ApiResponse::error('No projects found for this Project Manager.', [], 404);
+    }
+
+    // ✅ Return Response
+    return ApiResponse::success('Projects fetched successfully', [
+        'project_manager_id' => $projectManagerId,
+        'projects' => $projects
+    ]);
 	}
 
 	public function getUserProjects()
