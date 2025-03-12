@@ -190,5 +190,11 @@ class PerformaSheetController extends Controller
 			'updated_data' => $updatedIds
 		]);
 	}
+	
+	public function getPerformaManagerEmp(Request $request)
+	{
+		$user = auth()->user();
+		return response()->json(['message' => $user]);
+	}
 
 }

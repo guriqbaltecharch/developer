@@ -50,6 +50,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/assigned-projects', [ProjectController::class, 'getAssignedProjects']);
     Route::post('/assign-project-employee', [ProjectController::class, 'assignProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
+    Route::get('/get-project-manager-employee', [ProjectController::class, 'getProjectManagerEmployee']);
 	
 	// Performa API
 	Route::post('/add-performa-sheets', [PerformaSheetController::class, 'addPerformaSheets']);
@@ -57,6 +58,7 @@ Route::middleware('auth:api')->group(function () {
 	Route::middleware('auth:api')->group(function () {
     Route::get('/get-performa-sheet', [PerformaSheetController::class, 'getUserPerformaSheets']);
     Route::get('/get-all-performa-sheets', [PerformaSheetController::class, 'getAllPerformaSheets']);
+	Route::get('/get-performa-manager-emp', [PerformaSheetController::class, 'getPerformaManagerEmp']);
 });
 
 });

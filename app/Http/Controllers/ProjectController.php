@@ -152,7 +152,6 @@ class ProjectController extends Controller
 public function getAssignedAllProjects()
 {
     $user = auth()->user();
-
     // Fetch all projects with related client, assignedBy, assignedUsers, and projectManager
     $projects = Project::with('client', 'assignedBy', 'assignedUsers:id,name,email', 'projectManager:id,name')->get();
 
@@ -191,5 +190,34 @@ public function getAssignedAllProjects()
     return ApiResponse::success('Projects fetched successfully', $projects);
     //return response()->json(['message' => 'Test']);
 }*/
+
+public function getProjectManagerEmployee()
+{
+    $user = auth()->user(); // Get logged-in user
+
+    if (!$user->team_id) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Team ID not found for this user.',
+            'data' => []
+        ]);
+    }
+
+    // Fetch all employees in the same team, excluding the logged-in manager
+    $employees = User::where('team_id', $user->team_id)
+        ->where('id', '!=', $user->id) // Exclude logged-in user
+        ->select('id', 'name', 'email', 'profile_pic', 'role_id')
+        ->get();
+
+    return response()->json([
+        'success' => true,
+        'message' => $employees->isEmpty() ? 'No employees found for this team.' : 'Employees fetched successfully',
+        'team_id' => $user->team_id,
+        'project_manager_id' => $user->id, // Add Project Manager ID
+        'employees' => $employees
+    ]);
+}
+
+
 
 }
