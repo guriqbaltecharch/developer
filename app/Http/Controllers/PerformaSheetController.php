@@ -191,10 +191,104 @@ class PerformaSheetController extends Controller
 		]);
 	}
 	
-	public function getPerformaManagerEmp(Request $request)
+	public function getPerformaManagerEmp()
+	{
+		$projectManager = auth()->user(); // Get logged-in project manager
+		$teamId = $projectManager->team_id; // ✅ Fetch Project Manager's team_id
+		// Fetch only users from the same team
+		$sheets = PerformaSheet::with(['user:id,name,team_id'])
+					->whereHas('user', function ($query) use ($teamId) {
+						$query->where('team_id', $teamId);
+					})
+					->get();
+
+		$structuredData = [];
+		foreach ($sheets as $sheet) {
+        $dataArray = json_decode($sheet->data, true);
+
+        if (!is_array($dataArray)) {
+            continue; // Skip if data is not valid JSON
+        }
+
+        // Extract project_id & date
+        $projectId = $dataArray['project_id'] ?? null;
+        $date = $dataArray['date'] ?? '0000-00-00'; // Default value to avoid errors
+
+        // Fetch project details (project_name, client_name, deadline)
+        $project = $projectId ? Project::with('client:id,name')->find($projectId) : null;
+        $projectName = $project->project_name ?? 'No Project Found';
+        $clientName = $project->client->name ?? 'No Client Found';
+        $deadline = $project->deadline ?? 'No Deadline Set';
+
+        // Add project_name, client_name, deadline, and status to sheet data
+        $dataArray['project_name'] = $projectName;
+        $dataArray['client_name'] = $clientName;
+        $dataArray['deadline'] = $deadline;
+        $dataArray['status'] = $sheet->status ?? 'pending';
+        $dataArray['user_id'] = $sheet->user->id;
+        $dataArray['user_name'] = $sheet->user->name;
+        $dataArray['performa_sheet_id'] = $sheet->id;
+
+        // Store in structuredData array
+        $structuredData[] = $dataArray;
+		}
+		// ✅ Sort all records globally by `date` (Latest first)
+		$structuredData = collect($structuredData)->sortByDesc('date')->values()->toArray();
+		return response()->json([
+        'success' => true,
+        'message' => 'Performa Sheets fetched successfully',
+        'project_manager_id' => $projectManager->id,
+        'team_id' => $teamId, // ✅ Include team_id in response
+        'data' => $structuredData
+		]);
+	}
+
+	public function editPerformaSheets(Request $request)
 	{
 		$user = auth()->user();
-		return response()->json(['message' => $user]);
+		return response()->json(['message' => 'Test']);
+		try {
+			$validatedData = $request->validate([
+				//'user_id' => 'required|exists:users,id',
+				'data' => 'required|array',
+				'data.*.project_id' => 'required|exists:projects,id',
+				'data.*.project_id' => [
+			'required',
+			Rule::exists('project_user', 'project_id')->where(function ($query) use ($user) {
+				$query->where('user_id', $user->id);
+			})
+		],
+				'data.*.date' => 'required|date_format:Y-m-d',
+				'data.*.time' => 'required|date_format:H:i',
+				'data.*.work_type' => 'required|string|max:255',
+				'data.*.activity_type' => 'required|string|max:255',
+				'data.*.narration' => 'nullable|string' // ✅ Added narration as a long text field
+			]);
+
+			$insertedRecords = [];
+
+			foreach ($validatedData['data'] as $record) {
+				$insertedRecords[] = PerformaSheet::create([
+					'user_id' => $user->id, // Store user_id
+					'data' => json_encode($record) // Store JSON data
+				]);
+			}
+
+			return response()->json([
+				'success' => true,
+				'message' => count($insertedRecords) . ' Performa Sheets added successfully',
+				'data' => $insertedRecords
+			]);
+		} 
+		catch (\Exception $e) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Internal Server Error',
+				'error' => $e->getMessage()
+			], 500);
+		}
 	}
+
+		
 
 }

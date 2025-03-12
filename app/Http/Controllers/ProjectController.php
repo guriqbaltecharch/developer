@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
+use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
@@ -51,28 +52,49 @@ class ProjectController extends Controller
 
         return ApiResponse::success('Project assigned to Project Manager successfully', $project->load('projectManager'));
     }
+	
+	public function assignProjectManagerProjectToEmployee(Request $request)
+	{
+		// ✅ Validate Request Data
+		$validatedData = $request->validate([
+			'project_id' => 'required|exists:projects,id',
+			'employee_ids' => 'required|array|min:1',
+			'employee_ids.*' => 'exists:users,id'
+		]);
+		$project = Project::find($validatedData['project_id']);
+		if (!$project) {
+			return ApiResponse::error('Invalid project_id. Project does not exist.', [], 404);
+		}
+		// ✅ Get Logged-in Project Manager ID
+			$projectManagerId = auth()->user()->id;
+		// ✅ Insert into `project_user` Table and Collect Inserted IDs
+			$insertedData = [];
+			try {
+			foreach ($validatedData['employee_ids'] as $employeeId) {
+				$insertedId = DB::table('project_user')->insertGetId([
+					'project_id' => $validatedData['project_id'],
+					'user_id' => $employeeId,
+					'created_at' => now(),
+					'updated_at' => now()
+				]);
 
-    public function assignProjectToEmployee(Request $request)
-    {
-        $validatedData = $request->validate([
-            'project_id' => 'required|exists:projects,id',
-            'employee_ids' => 'required|array',
-            'employee_ids.*' => 'exists:users,id'
-        ]);
+				$insertedData[] = [
+					'id' => $insertedId,  // ✅ Inserted increment ID
+					'project_id' => $validatedData['project_id'],
+					'user_id' => $employeeId
+				];
+			}
+			} catch (\Exception $e) {
+				return ApiResponse::error('Database Error: ' . $e->getMessage(), [], 500);
+			}
+			// ✅ Return Response with Only Required Data
+				return ApiResponse::success('Project assigned successfully', [
+					'project_manager_id' => $projectManagerId, // ✅ Logged-in Project Manager ID
+					'data' => $insertedData // ✅ Inserted records with `id`, `project_id`, `user_id`
+				]);
+	}
 
-        $project = Project::findOrFail($request->project_id);
-
-        // Check if the authenticated user is the Project Manager of this project
-        if (auth()->user()->id !== $project->project_manager_id) {
-            return ApiResponse::error('You are not authorized to assign employees to this project', [], 403);
-        }
-
-        $project->assignedEmployees()->sync($request->employee_ids);
-
-        return ApiResponse::success('Project assigned to Employees successfully', $project->load('assignedEmployees'));
-    }
-
-    public function getUserProjects()
+	public function getUserProjects()
     {
         $user = auth()->user();
         $projects = $user->assignedProjects()->with('client')->get();
@@ -80,9 +102,7 @@ class ProjectController extends Controller
         return ApiResponse::success('User projects fetched successfully', $projects);
     }
 
-
-
-    public function getAssignedProjects()
+	public function getAssignedProjects()
     {
         $user = auth()->user();
 
@@ -95,58 +115,47 @@ class ProjectController extends Controller
         return ApiResponse::success('Projects fetched successfully', $projects);
     }
 
-
-
-    public function update(Request $request, $id)
+	public function update(Request $request, $id)
     {
         $project = Project::find($id);
-
-        if (!$project) {
+		if (!$project) {
             return ApiResponse::error('Project not found', [], 404);
         }
-
-        $validatedData = $request->validate([
+		$validatedData = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'project_name' => 'required|string|max:255',
             'requirements' => 'nullable|string',
             'budget' => 'nullable|numeric',
             'deadline' => 'nullable|date'
         ]);
-
-        $project->update($validatedData);
-
-        return ApiResponse::success('Project updated successfully', new ProjectResource($project));
+		$project->update($validatedData);
+		return ApiResponse::success('Project updated successfully', new ProjectResource($project));
     }
 
     public function destroy($id)
     {
         $project = Project::find($id);
-
-        if (!$project) {
+		if (!$project) {
             return ApiResponse::error('Project not found', [], 404);
         }
-
-        $project->delete();
+		$project->delete();
         return ApiResponse::success('Project deleted successfully');
     }
 	
 	public function assignUsersToProject(Request $request, $projectId)
-{
-    $project = Project::find($projectId);
-    if (!$project) {
-        return ApiResponse::error('Project not found', [], 404);
-    }
-
-    $request->validate([
+	{
+		$project = Project::find($projectId);
+		if (!$project) {
+			return ApiResponse::error('Project not found', [], 404);
+		}
+		$request->validate([
         'user_ids' => 'required|array',
         'user_ids.*' => 'exists:users,id'
-    ]);
-
-    // Attach users to the project (if already assigned, it won't duplicate)
-    $project->assignedUsers()->sync($request->user_ids);
-
-    return ApiResponse::success('Users assigned successfully', $project->load('assignedUsers'));
-}
+		]);
+		// Attach users to the project (if already assigned, it won't duplicate)
+		$project->assignedUsers()->sync($request->user_ids);
+		return ApiResponse::success('Users assigned successfully', $project->load('assignedUsers'));
+	}
 
 // Projects with  EMployess by all project manager 
 public function getAssignedAllProjects()
@@ -217,7 +226,5 @@ public function getProjectManagerEmployee()
         'employees' => $employees
     ]);
 }
-
-
 
 }

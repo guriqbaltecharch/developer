@@ -38,7 +38,7 @@ class Project extends Model
 
     public function assignedEmployees()
     {
-        return $this->belongsToMany(User::class, 'project_user', 'project_id', 'user_id', 'user_email');
+        return $this->belongsToMany(User::class, 'project_user', 'project_id', 'user_id');
 		
     }
 	

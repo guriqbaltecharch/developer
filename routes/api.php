@@ -48,12 +48,13 @@ Route::middleware('auth:api')->group(function () {
     //Route::post('/assign-project-managers', [ProjectController::class, 'getProjectEmployee']);
     Route::get('/assigned-all-projects', [ProjectController::class, 'getAssignedAllProjects']);
     Route::get('/assigned-projects', [ProjectController::class, 'getAssignedProjects']);
-    Route::post('/assign-project-employee', [ProjectController::class, 'assignProjectToEmployee']);
+    Route::post('/assign-projectmanager-projectto-employee', [ProjectController::class, 'assignProjectManagerProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
     Route::get('/get-project-manager-employee', [ProjectController::class, 'getProjectManagerEmployee']);
 	
 	// Performa API
 	Route::post('/add-performa-sheets', [PerformaSheetController::class, 'addPerformaSheets']);
+	Route::post('/edit-performa-sheets', [PerformaSheetController::class, 'editPerformaSheets']);
 	Route::post('/get-approval-performa-sheets', [PerformaSheetController::class, 'getApprovalPerformaSheets']);
 	Route::middleware('auth:api')->group(function () {
     Route::get('/get-performa-sheet', [PerformaSheetController::class, 'getUserPerformaSheets']);
