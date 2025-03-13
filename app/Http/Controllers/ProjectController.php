@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ProjectController extends Controller
 {
@@ -120,40 +121,56 @@ class ProjectController extends Controller
 	}
 	
 	public function getProjectofEmployeeAssignbyProjectManager()
-{
-    // ✅ Get Logged-in Project Manager ID
-    $projectManagerId = auth()->user()->id;
-
-    // ✅ Fetch All Projects Assigned by This Project Manager
-    $projects = Project::where('project_manager_id', $projectManagerId)
-        ->with([
-            'client:id,name', // ✅ Fetch client_name using relationship
-            'assignedEmployees' => function ($query) {
-                $query->select('users.id', 'users.name', 'users.email'); // ✅ Only specific fields (No pivot)
-            }
-        ])
+	{
+		 // ✅ Get Logged-in Project Manager ID
+		$projectManagerId = auth()->user()->id;
+		// ✅ Fetch All Projects Assigned by This Project Manager
+		$projects = Project::where('project_manager_id', $projectManagerId)
+        ->with(['assignedEmployees' => function ($query) {
+            $query->select('users.id', 'users.name', 'users.email'); // ✅ Only specific fields (No pivot)
+        }])
         ->get(['id', 'project_name', 'client_id', 'deadline', 'project_manager_id']);
 
-    // ✅ If No Projects Found
-    if ($projects->isEmpty()) {
-        return ApiResponse::error('No projects found for this Project Manager.', [], 404);
-    }
-
-    // ✅ Return Response
+		// ✅ If No Projects Found
+		if ($projects->isEmpty()) {
+			return ApiResponse::error('No projects found for this Project Manager.', [], 404);
+		}
+// ✅ Return Response
     return ApiResponse::success('Projects fetched successfully', [
         'project_manager_id' => $projectManagerId,
         'projects' => $projects
     ]);
+	}
+
+	public function getUserProjects()
+{
+    $user = auth()->user();
+
+    // ✅ Fetch projects with pivot (user_id, project_id, created_at)
+    $projects = $user->assignedProjects()
+        ->with('client:id,name')
+        ->get()
+        ->map(function ($project) {
+            return [
+                'id' => $project->id,
+                'project_name' => $project->project_name,
+                'client_name' => $project->client->name ?? 'No Client Found',
+                'deadline' => $project->deadline,
+                'pivot' => [
+                    'user_id' => $project->pivot->user_id,
+                    'project_id' => $project->pivot->project_id,
+                    'assigned_at' => $project->pivot->created_at
+                        ? Carbon::parse($project->pivot->created_at)->toDateString()  // ✅ Keep only date
+                        : 'Not Assigned'
+                ]
+            ];
+        });
+
+    return ApiResponse::success('User projects fetched successfully', $projects);
 }
 
 
-	public function getUserProjects()
-    {
-        $user = auth()->user();
-        $projects = $user->assignedProjects()->with('client')->get();
 
-        return ApiResponse::success('User projects fetched successfully', $projects);
-    }
 
 	public function getAssignedProjects()
     {
