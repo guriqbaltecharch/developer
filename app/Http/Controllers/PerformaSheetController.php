@@ -244,50 +244,79 @@ class PerformaSheetController extends Controller
 	}
 
 	public function editPerformaSheets(Request $request)
-	{
-		$user = auth()->user();
-		return response()->json(['message' => 'Test']);
-		try {
-			$validatedData = $request->validate([
-				//'user_id' => 'required|exists:users,id',
-				'data' => 'required|array',
-				'data.*.project_id' => 'required|exists:projects,id',
-				'data.*.project_id' => [
-			'required',
-			Rule::exists('project_user', 'project_id')->where(function ($query) use ($user) {
-				$query->where('user_id', $user->id);
-			})
-		],
-				'data.*.date' => 'required|date_format:Y-m-d',
-				'data.*.time' => 'required|date_format:H:i',
-				'data.*.work_type' => 'required|string|max:255',
-				'data.*.activity_type' => 'required|string|max:255',
-				'data.*.narration' => 'nullable|string' // ✅ Added narration as a long text field
-			]);
+{
+    $user = auth()->user();
 
-			$insertedRecords = [];
+    try {
+        $validatedData = $request->validate([
+            'id' => 'required|exists:performa_sheets,id',
+            'data' => 'required|array',
+            'data.project_id' => [
+                'required',
+                Rule::exists('project_user', 'project_id')->where(function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+            ],
+            'data.date' => 'required|date_format:Y-m-d',
+            'data.time' => 'required|date_format:H:i',
+            'data.work_type' => 'required|string|max:255',
+            'data.activity_type' => 'required|string|max:255',
+            'data.narration' => 'nullable|string' 
+        ]);
 
-			foreach ($validatedData['data'] as $record) {
-				$insertedRecords[] = PerformaSheet::create([
-					'user_id' => $user->id, // Store user_id
-					'data' => json_encode($record) // Store JSON data
-				]);
-			}
+        // ✅ Find Performa Sheet
+        $performaSheet = PerformaSheet::where('id', $validatedData['id'])
+                                      ->where('user_id', $user->id)
+                                      ->first();
 
-			return response()->json([
-				'success' => true,
-				'message' => count($insertedRecords) . ' Performa Sheets added successfully',
-				'data' => $insertedRecords
-			]);
-		} 
-		catch (\Exception $e) {
-			return response()->json([
-				'success' => false,
-				'message' => 'Internal Server Error',
-				'error' => $e->getMessage()
-			], 500);
-		}
-	}
+        if (!$performaSheet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Performa Sheet not found or you do not have permission to edit it.'
+            ], 404);
+        }
+
+        // ✅ Get Old Data & Status
+        $oldData = json_decode($performaSheet->data, true);
+        $oldStatus = $performaSheet->status; // ✅ Fetch previous status
+        $newData = $validatedData['data'];
+
+        // ✅ Check if Any Data is Changed
+        $isChanged = $oldData != $newData;
+
+        // ✅ If Data is Changed, Update Status Accordingly
+        if ($isChanged) {
+            if ($oldStatus === 'Approved' || $oldStatus === 'Rejected' || $oldStatus === 'approved' || $oldStatus === 'rejected') {
+                $performaSheet->status = 'Pending'; // ✅ Change only if previous status was Approved/Rejected
+            }
+            $performaSheet->data = json_encode($newData);
+            $performaSheet->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Performa Sheet updated successfully',
+                'status' => $performaSheet->status, // ✅ Return updated status
+                'data' => $performaSheet
+            ]);
+        } else {
+            return response()->json([
+                'success' => true,
+                'message' => 'No changes detected.',
+                'status' => $oldStatus, // ✅ Return previous status
+                'data' => $performaSheet
+            ]);
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Internal Server Error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
 
 		
 
