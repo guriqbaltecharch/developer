@@ -91,6 +91,7 @@ class PerformaSheetController extends Controller
 			unset($dataArray['user_id'], $dataArray['user_name']);
 
 			// Add project_name, client_name, and deadline to sheet data
+			$dataArray['id'] = $sheet->id; // Row ID
 			$dataArray['project_name'] = $projectName;
 			$dataArray['client_name'] = $clientName;
 			$dataArray['deadline'] = $deadline;
