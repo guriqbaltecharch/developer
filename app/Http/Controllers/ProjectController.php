@@ -142,20 +142,24 @@ class ProjectController extends Controller
     ]);
 	}
 
-	public function getUserProjects()
+public function getUserProjects()
 {
     $user = auth()->user();
 
-    // ✅ Fetch projects with pivot (user_id, project_id, created_at)
+    // ✅ Fetch projects with full client data & pivot (assigned_at)
     $projects = $user->assignedProjects()
-        ->with('client:id,name')
+        ->with('client') // ✅ Fetch full client data
         ->get()
         ->map(function ($project) {
             return [
                 'id' => $project->id,
                 'project_name' => $project->project_name,
-                'client_name' => $project->client->name ?? 'No Client Found',
+                'budget' => $project->budget,
+                'requirements' => $project->requirements,
                 'deadline' => $project->deadline,
+                'created_at' => Carbon::parse($project->created_at)->toDateString(), // ✅ Keep only date
+                'updated_at' => Carbon::parse($project->updated_at)->toDateString(), // ✅ Keep only date
+                'client' => $project->client ?? ['message' => 'No Client Found'], // ✅ Return full client data
                 'pivot' => [
                     'user_id' => $project->pivot->user_id,
                     'project_id' => $project->pivot->project_id,
@@ -168,6 +172,7 @@ class ProjectController extends Controller
 
     return ApiResponse::success('User projects fetched successfully', $projects);
 }
+
 
 
 
