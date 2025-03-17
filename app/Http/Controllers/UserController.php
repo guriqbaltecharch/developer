@@ -11,40 +11,51 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function store(Request $request)
-{
-    try {
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'team_id' => 'nullable|exists:teams,id', // Single team ID
-            'phone_num' => 'nullable|string|max:15',
-            'emergency_phone_num' => 'nullable|string|max:15',
-            'address' => 'nullable|string',
-            'role_id' => 'required|exists:roles,id', // Single role ID
-        ]);
+   public function store(Request $request)
+	{
+		try {
+			$validatedData = $request->validate([
+				'name' => 'required|string|max:255',
+				'email' => 'required|email|unique:users',
+				'password' => 'required|min:6',
+				'team_id' => 'nullable|exists:teams,id',
+				'phone_num' => 'nullable|string|max:15',
+				'emergency_phone_num' => 'nullable|string|max:15',
+				'address' => 'nullable|string',
+				'role_id' => 'required|exists:roles,id',
+				'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+				'profile_pic_name' => 'nullable|string' // Accepting image name in JSON
+			]);
 
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return ApiResponse::error('Validation failed', $e->errors(), 422);
-    }
+		} catch (\Illuminate\Validation\ValidationException $e) {
+			return ApiResponse::error('Validation failed', $e->errors(), 422);
+		}
 
-    // ✅ Create the user
-    $user = User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'address' => $request->address,
-        'phone_num' => $request->phone_num,
-        'emergency_phone_num' => $request->emergency_phone_num,
-        'password' => Hash::make($request->password),
-        'team_id' => $request->team_id, // Single team ID
-        'role_id' => $request->role_id, // Single role ID
-    ]);
+		// ✅ Create the user
+		$user = User::create([
+			'name' => $request->name,
+			'email' => $request->email,
+			'address' => $request->address,
+			'phone_num' => $request->phone_num,
+			'emergency_phone_num' => $request->emergency_phone_num,
+			'password' => Hash::make($request->password),
+			'team_id' => $request->team_id,
+			'role_id' => $request->role_id,
+			'profile_pic' => $request->profile_pic_name // Save image name from JSON
+		]);
 
-    return ApiResponse::success('User created successfully', new UserResource($user), 201);
+		// ✅ Save file only if uploaded
+		if ($request->hasFile('profile_pic')) {
+			$file = $request->file('profile_pic');
+			$filename = time() . '.' . $file->getClientOriginalExtension();
+			$file->storeAs('public/profile_pics', $filename);
+
+			$user->profile_pic = $filename; // Update stored image name
+			$user->save();
+		}
+
+		return ApiResponse::success('User created successfully', new UserResource($user), 201);
 }
-
-
 
     public function index()
     {
