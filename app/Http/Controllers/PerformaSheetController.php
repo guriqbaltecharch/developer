@@ -10,52 +10,167 @@ use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
 use App\Models\PerformaSheet;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class PerformaSheetController extends Controller
 {
 	public function addPerformaSheets(Request $request)
-	{
-		$user = auth()->user();
-		try {
-			$validatedData = $request->validate([
-				//'user_id' => 'required|exists:users,id',
-				'data' => 'required|array',
-				'data.*.project_id' => 'required|exists:projects,id',
-				'data.*.project_id' => [
-			'required',
-			Rule::exists('project_user', 'project_id')->where(function ($query) use ($user) {
-				$query->where('user_id', $user->id);
-			})
-		],
-				'data.*.date' => 'required|date_format:Y-m-d',
-				'data.*.time' => 'required|date_format:H:i',
-				'data.*.work_type' => 'required|string|max:255',
-				'data.*.activity_type' => 'required|string|max:255',
-				'data.*.narration' => 'nullable|string' // ✅ Added narration as a long text field
-			]);
+{
+    $user = auth()->user();
 
-			$insertedRecords = [];
+    try {
+        $validatedData = $request->validate([
+            'data' => 'required|array',
+            'data.*.project_id' => [
+                'required',
+                Rule::exists('project_user', 'project_id')->where(fn($query) => $query->where('user_id', $user->id))
+            ],
+            'data.*.date' => 'required|date_format:Y-m-d',
+            'data.*.time' => ['required', 'regex:/^\d{2}:\d{2}$/'], // ✅ Ensures HH:mm format
+            'data.*.work_type' => 'required|string|max:255',
+            'data.*.activity_type' => 'required|string|max:255',
+            'data.*.narration' => 'nullable|string'
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation failed!',
+            'errors' => $e->errors()
+        ], 422);
+    }
 
-			foreach ($validatedData['data'] as $record) {
-				$insertedRecords[] = PerformaSheet::create([
-					'user_id' => $user->id, // Store user_id
-					'data' => json_encode($record) // Store JSON data
-				]);
-			}
+    $insertedRecords = [];
+    $projectHours = [];
+    $totalHoursPerProject = [];
+    $limitExceededProjects = [];
+    $projectRecords = [];
 
-			return response()->json([
-				'success' => true,
-				'message' => count($insertedRecords) . ' Performa Sheets added successfully',
-				'data' => $insertedRecords
-			]);
-		} catch (\Exception $e) {
-			return response()->json([
-				'success' => false,
-				'message' => 'Internal Server Error',
-				'error' => $e->getMessage()
-			], 500);
-		}
-	}
+    // ✅ Store project data grouped by `project_id`
+    foreach ($validatedData['data'] as $record) {
+        list($hours, $minutes) = explode(':', $record['time']);
+        $timeInHours = (int)$hours + ((int)$minutes / 60);
+
+        if (!isset($projectHours[$record['project_id']])) {
+            $projectHours[$record['project_id']] = 0;
+            $projectRecords[$record['project_id']] = $record; // ✅ Store correct data for each `project_id`
+        }
+        $projectHours[$record['project_id']] += $timeInHours;
+    }
+
+    // ✅ Process each project separately with correct data
+    foreach ($projectHours as $projectId => $newlyInsertedHours) {
+        $project = Project::find($projectId);
+        $record = $projectRecords[$projectId]; // ✅ Get the correct record for this project_id
+
+        if ($project) {
+            $previousTotalHours = $project->total_working_hours;
+            $totalHoursLimit = $project->total_hours;
+            $finalTotalHours = $previousTotalHours + $newlyInsertedHours;
+            $project->total_working_hours = $finalTotalHours;
+            $project->save();
+
+            $originalActivityType = $record['activity_type'];
+            $message = "";
+
+            if ($originalActivityType == "Billable") {
+                $message = "I am Billable";
+            } else if ($originalActivityType == "Non Billable") {
+                $message = "I am Non Billable";
+            } else if ($originalActivityType == "Inhouse") {
+                $message = "I am Inhouse";
+            }
+
+            // ✅ If "Inhouse" or "Non Billable", add simple row (No extra row)
+            if ($originalActivityType == "Inhouse" || $originalActivityType == "Non Billable") {
+                $insertedRecords[] = PerformaSheet::create([
+                    'user_id' => $user->id,
+                    'data' => json_encode([
+                        'project_id' => $projectId,
+                        'date' => $record['date'],
+                        'time' => $record['time'], // ✅ No split, just add the full time
+                        'work_type' => $record['work_type'],
+                        'narration' => $record['narration'],
+                        'activity_type' => $originalActivityType,
+                        'message' => "$message - Hours added without limit check"
+                    ])
+                ]);
+            } 
+            // ✅ If "Billable", check limits and split if needed
+            else {
+                $remainingHours = max(0, $totalHoursLimit - $previousTotalHours);
+                $extraHours = max(0, $newlyInsertedHours - $remainingHours);
+
+                if ($finalTotalHours > $totalHoursLimit) {
+                    if ($remainingHours > 0) {
+                        $insertedRecords[] = PerformaSheet::create([
+                            'user_id' => $user->id,
+                            'data' => json_encode([
+                                'project_id' => $projectId,
+                                'date' => $record['date'],
+                                'time' => sprintf("%02d:00", $remainingHours),
+                                'work_type' => $record['work_type'],
+                                'narration' => $record['narration'],
+                                'activity_type' => "Billable",
+                                'message' => "Billable - Only remaining hours added before limit exceeded"
+                            ])
+                        ]);
+                    }
+
+                    if ($extraHours > 0) {
+                        $insertedRecords[] = PerformaSheet::create([
+                            'user_id' => $user->id,
+                            'data' => json_encode([
+                                'project_id' => $projectId,
+                                'date' => $record['date'],
+                                'time' => sprintf("%02d:00", $extraHours),
+                                'work_type' => $record['work_type'],
+                                'narration' => $record['narration'],
+                                'activity_type' => "Non Billable", // ✅ Extra hours are Non Billable
+                                'message' => "Extra hours marked as Non Billable"
+                            ])
+                        ]);
+                    }
+
+                    $limitExceededProjects[$projectId] = [
+                        "project_id" => $projectId,
+                        "project_name" => $project->project_name,
+                        "total_working_hours" => $finalTotalHours,
+                        "limit" => $totalHoursLimit,
+                        "status" => "limit pending",
+                        "exceeded_by" => $extraHours
+                    ];
+                } else {
+                    $insertedRecords[] = PerformaSheet::create([
+                        'user_id' => $user->id,
+                        'data' => json_encode([
+                            'project_id' => $projectId,
+                            'date' => $record['date'],
+                            'time' => $record['time'],
+                            'work_type' => $record['work_type'],
+                            'narration' => $record['narration'],
+                            'activity_type' => "Billable",
+                            'message' => "Billable - Hours added successfully"
+                        ])
+                    ]);
+                }
+            }
+
+            $totalHoursPerProject[$projectId] = [
+                "project_id" => $projectId,
+                "project_name" => $project->project_name,
+                "total_working_hours" => $finalTotalHours,
+                "status" => ($finalTotalHours > $totalHoursLimit) ? "limit pending" : "ok"
+            ];
+        }
+    }
+
+    return response()->json([
+        'success' => true,
+        'inserted_records' => count($insertedRecords) . ' Performa Sheets added successfully',
+        'total_hours_per_project' => $totalHoursPerProject,
+        'exceeded_projects' => $limitExceededProjects
+    ]);
+}
 
 	public function getUserPerformaSheets()
 	{
