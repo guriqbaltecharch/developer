@@ -23,7 +23,9 @@ class Project extends Model
 
     public function projectManager()
     {
-        return $this->belongsTo(User::class, 'project_manager_id');
+        return $this->belongsToMany(User::class, 'project_manager_project', 'project_id', 'project_manager_id')
+                    ->withPivot('assigned_by')
+                    ->withTimestamps();
     }
 	
 	public function projectClient()
