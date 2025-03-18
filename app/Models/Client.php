@@ -9,7 +9,8 @@ class Client extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'upwork_id', 'contact_detail'];
+    protected $fillable = ['name', 'client_project_id', 'contact_detail', 'hire_through', 'hire_on_id'];
+
 
     public function projects()
     {
