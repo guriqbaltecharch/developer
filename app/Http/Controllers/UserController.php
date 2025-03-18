@@ -11,69 +11,50 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-  public function addPerformaSheets(Request $request)
-{
-    $user = auth()->user();
-
+   public function store(Request $request)
+	{
     try {
         $validatedData = $request->validate([
-            'data' => 'required|array',
-            'data.*.project_id' => [
-                'required',
-                Rule::exists('project_user', 'project_id')->where(fn($query) => $query->where('user_id', $user->id))
-            ],
-            'data.*.date' => 'required|date_format:Y-m-d',
-            'data.*.time' => 'required|date_format:H:i',
-            'data.*.work_type' => 'required|string|max:255',
-            'data.*.activity_type' => 'required|string|max:255',
-            'data.*.narration' => 'nullable|string'
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:6',
+            'team_id' => 'nullable|exists:teams,id',
+            'phone_num' => 'nullable|string|max:15',
+            'emergency_phone_num' => 'nullable|string|max:15',
+            'address' => 'nullable|string',
+            'role_id' => 'required|exists:roles,id',
+            'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_pic_name' => 'nullable|string' // Accepting image name in JSON
         ]);
+
     } catch (\Illuminate\Validation\ValidationException $e) {
         return ApiResponse::error('Validation failed', $e->errors(), 422);
     }
 
-    $insertedRecords = [];
-    $projectIds = [];
-
-    foreach ($validatedData['data'] as $record) {
-        // ✅ Convert time (HH:mm) to total decimal hours
-        list($hours, $minutes) = explode(':', $record['time']);
-        $timeInHours = (int)$hours + ((int)$minutes / 60); // Convert minutes to decimal
-
-        // ✅ Store Performa Sheet Entry (JSON format)
-        $insertedRecords[] = PerformaSheet::create([
-            'user_id' => $user->id,
-            'data' => json_encode($record) // ✅ Store data as JSON
-        ]);
-
-        // ✅ Keep track of project IDs that need to be updated
-        if (!in_array($record['project_id'], $projectIds)) {
-            $projectIds[] = $record['project_id'];
-        }
-    }
-
-    // ✅ Update `total_working_hours` for each project
-    foreach ($projectIds as $projectId) {
-        // ✅ Get total sum of all working hours for this `project_id`
-        $totalWorkingHours = PerformaSheet::whereRaw("JSON_EXTRACT(data, '$.project_id') = ?", [$projectId])
-            ->get()
-            ->sum(function ($performa) {
-                $performaData = json_decode($performa->data, true);
-                list($h, $m) = explode(':', $performaData['time']);
-                return (int)$h + ((int)$m / 60);
-            });
-
-        // ✅ Update the `total_working_hours` in the `projects` table
-        Project::where('id', $projectId)->update([
-            'total_working_hours' => $totalWorkingHours
-        ]);
-    }
-
-    return response()->json([
-        'success' => true,
-        'message' => count($insertedRecords) . ' Performa Sheets added successfully',
-        'data' => $insertedRecords
+    // ✅ Create the user
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'address' => $request->address,
+        'phone_num' => $request->phone_num,
+        'emergency_phone_num' => $request->emergency_phone_num,
+        'password' => Hash::make($request->password),
+        'team_id' => $request->team_id,
+        'role_id' => $request->role_id,
+        'profile_pic' => $request->profile_pic_name // Save image name from JSON
     ]);
+
+    // ✅ Save file only if uploaded
+    if ($request->hasFile('profile_pic')) {
+        $file = $request->file('profile_pic');
+        $filename = time() . '.' . $file->getClientOriginalExtension();
+        $file->storeAs('public/profile_pics', $filename);
+
+        $user->profile_pic = $filename; // Update stored image name
+        $user->save();
+    }
+
+    return ApiResponse::success('User created successfully', new UserResource($user), 201);
 }
 
 
