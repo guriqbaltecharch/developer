@@ -125,26 +125,28 @@ class ProjectController extends Controller
 	}
 	
 	public function getProjectofEmployeeAssignbyProjectManager()
-	{
-		 // ✅ Get Logged-in Project Manager ID
-		$projectManagerId = auth()->user()->id;
-		// ✅ Fetch All Projects Assigned by This Project Manager
-		$projects = Project::where('project_manager_id', $projectManagerId)
+{
+    $projectManagerId = auth()->user()->id;
+
+    // ✅ Fetch All Projects Assigned by This Project Manager (Using JSON_CONTAINS)
+    $projects = Project::whereRaw("JSON_CONTAINS(project_manager_id, ?, '$')", [json_encode($projectManagerId)])
         ->with(['assignedEmployees' => function ($query) {
-            $query->select('users.id', 'users.name', 'users.email'); // ✅ Only specific fields (No pivot)
+            $query->select('users.id', 'users.name', 'users.email');
         }])
         ->get(['id', 'project_name', 'client_id', 'deadline', 'project_manager_id']);
 
-		// ✅ If No Projects Found
-		if ($projects->isEmpty()) {
-			return ApiResponse::error('No projects found for this Project Manager.', [], 404);
-		}
-// ✅ Return Response
+    // ✅ If No Projects Found
+    if ($projects->isEmpty()) {
+        return ApiResponse::error('No projects found for this Project Manager.', [], 404);
+    }
+
+    // ✅ Return Response
     return ApiResponse::success('Projects fetched successfully', [
         'project_manager_id' => $projectManagerId,
         'projects' => $projects
     ]);
-	}
+}
+
 
 public function getUserProjects()
 {
