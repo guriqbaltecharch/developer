@@ -231,15 +231,13 @@ public function getUserProjects()
 public function getAssignedAllProjects()
 {
     // ✅ Fetch all projects with related data
-    $projects = Project::with([
-        'client', 
-        'assignedBy', 
-        'assignedUsers:id,name,email', 
-        'projectManager:id,name'
-    ])->get();
+    $projects = Project::with(['client', 'assignedBy', 'assignedUsers:id,name,email'])->get();
 
-    // ✅ Format response for clean structure
+    // ✅ Manually decode project_manager_id JSON and fetch manager details
     $projects = $projects->map(function ($project) {
+        $managerIds = json_decode($project->project_manager_id, true); // Decode JSON
+        $managers = $managerIds ? User::whereIn('id', $managerIds)->get(['id', 'name']) : collect();
+
         return [
             'id' => $project->id,
             'project_name' => $project->project_name,
@@ -247,19 +245,15 @@ public function getAssignedAllProjects()
             'deadline' => $project->deadline,
             'client' => $project->client,
             'assigned_by' => $project->assignedBy,
-            'project_managers' => $project->projectManager->isNotEmpty()
-                ? $project->projectManager->map(function ($manager) {
-                    return ['id' => $manager->id, 'name' => $manager->name];
-                })
-                : 'No project manager assigned',
-            'assigned_users' => $project->assignedUsers->isEmpty()
-                ? 'Project not assigned to anyone yet'
-                : $project->assignedUsers
+            'project_managers' => $managers->isNotEmpty() ? $managers : 'No project manager assigned',
+            'assigned_users' => $project->assignedUsers->isEmpty() ? 'Project not assigned to anyone yet' : $project->assignedUsers
         ];
     });
 
     return ApiResponse::success('Projects fetched successfully', $projects);
 }
+
+
 
 
 
