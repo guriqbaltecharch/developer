@@ -65,6 +65,7 @@ Route::middleware('auth:api')->group(function () {
 	Route::post('/add-leave', [LeaveController::class, 'Addleave']);
 	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
 	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
+	Route::get('/showmanager-leavesfor-teamemploye', [LeaveController::class, 'showmanagerLeavesForTeamemploye']);
 });
 
 });

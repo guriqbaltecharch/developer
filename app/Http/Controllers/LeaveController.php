@@ -57,7 +57,7 @@ class LeaveController extends Controller
 		]);
 	}
 	
-	 public function getallLeavesForHr(Request $request)
+	public function getallLeavesForHr(Request $request)
     {
         // Fetch all leaves for all users with their associated user details (e.g., name)
         $leaves = LeavePolicy::with('user:id,name') // Load the user relationship and select only the id and name fields
@@ -115,6 +115,69 @@ class LeaveController extends Controller
         return response()->json([
             'success' => true,
             'data' => $leaves
+        ]);
+	}
+	
+	public function showmanagerLeavesForTeamemploye(Request $request)
+	{
+		 // Get the authenticated user (Manager)
+        $user = auth()->user();
+
+        // Check if the user is a Manager
+        /*if ($user->role_id != 4) { // Assuming 4 is the Manager role_id
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to view this data.'
+            ], 403);
+        }*/
+
+        // Get Manager's information (name, role, team)
+        $managerInfo = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => 'Manager', // You can replace this with dynamic role retrieval if needed
+            'team_id' => $user->team_id,
+            // You can add other manager-specific info here if needed
+        ];
+
+        // Get all employees who are part of the same team as the Manager
+        $employees = User::where('team_id', $user->team_id)->get();
+
+        // Get the leaves for all employees in the Manager's team
+        $leaves = LeavePolicy::with('user:id,name,team_id') // Load the user details (name, team_id)
+                             ->whereIn('user_id', $employees->pluck('id')) // Filter leaves for employees in the same team
+                             ->get();
+
+        // If no leaves are found, return a message
+        if ($leaves->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No leaves found for your team.',
+                'data' => []
+            ]);
+        }
+
+        // Map the leave data to include the manager's info and employee's leave details
+        $leaveData = $leaves->map(function ($leave) {
+            return [
+                'id' => $leave->id,
+                'user_id' => $leave->user_id,
+                'user_name' => $leave->user->name,  // Access user name from the relationship
+                'start_date' => $leave->start_date,
+                'end_date' => $leave->end_date,
+                'leave_type' => $leave->leave_type,
+                'reason' => $leave->reason,
+                'status' => $leave->status,
+                'hours' => $leave->hours,
+                'created_at' => $leave->created_at,
+                'updated_at' => $leave->updated_at
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'manager' => $managerInfo, // Include Manager info in the response
+            'data' => $leaveData // Include employee leaves
         ]);
 	}
 }
