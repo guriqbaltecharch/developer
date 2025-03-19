@@ -12,10 +12,11 @@ class ClientResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'upwork_id' => $this->upwork_id,
             'contact_detail' => $this->contact_detail,
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at->format('Y-m-d H:i:s')
+            'hire_through' => $this->hire_through, // ✅ Ensure these exist
+            'hire_on_id' => $this->hire_on_id, // ✅ Ensure these exist
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

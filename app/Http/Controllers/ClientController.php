@@ -10,9 +10,11 @@ use App\Http\Resources\ClientResource;
 class ClientController extends Controller
 {
     public function index()
-    {
-        return ApiResponse::success('Clients fetched successfully', ClientResource::collection(Client::all()));
-    }
+	{
+		$clients = Client::all();
+		return ApiResponse::success('Clients fetched successfully', ClientResource::collection($clients));
+	}
+
 
     public function store(Request $request)
     {
