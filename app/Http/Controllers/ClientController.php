@@ -30,23 +30,21 @@ class ClientController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $client = Client::find($id);
+{
+    $client = Client::findOrFail($id);
+    
+    $validatedData = $request->validate([
+        'name' => 'required|string|max:255',
+        'contact_detail' => 'nullable|string',
+        'hire_through' => 'nullable|string|max:255',
+        'hire_on_id' => 'nullable|string|max:255',
+    ]);
 
-        if (!$client) {
-            return ApiResponse::error('Client not found', [], 404);
-        }
+    $client->update($validatedData);
 
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'upwork_id' => 'nullable|string|unique:clients,upwork_id,' . $id,
-            'contact_detail' => 'nullable|string'
-        ]);
+    return ApiResponse::success('Client updated successfully', new ClientResource($client));
+}
 
-        $client->update($validatedData);
-
-        return ApiResponse::success('Client updated successfully', new ClientResource($client));
-    }
 
     public function destroy($id)
     {
