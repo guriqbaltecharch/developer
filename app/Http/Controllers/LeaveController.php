@@ -56,4 +56,47 @@ class LeaveController extends Controller
 			'data' => $leave
 		]);
 	}
+	
+	 public function getallLeavesForHr(Request $request)
+    {
+        // Fetch all leaves for all users
+        $leaves = LeavePolicy::all();
+        // If no leaves are found, return a message saying "No leaves found"
+        if ($leaves->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No leaves found',
+                'data' => []
+            ]);
+        }
+
+        // Return the response with leave data if found
+        return response()->json([
+            'success' => true,
+            'data' => $leaves
+        ]);
+    }
+	
+	public function getLeavesByemploye(Request $request)
+	{
+		// Get the authenticated user
+        $user = auth()->user(); 
+
+        // Fetch the leaves for the logged-in user, you can also add filtering or pagination here
+        $leaves = LeavePolicy::where('user_id', $user->id)->get();
+
+        if ($leaves->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No leaves found for this user',
+                'data' => []
+            ]);
+        }
+
+        // Return the response with leave data if found
+        return response()->json([
+            'success' => true,
+            'data' => $leaves
+        ]);
+	}
 }

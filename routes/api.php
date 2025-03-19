@@ -63,6 +63,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/get-all-performa-sheets', [PerformaSheetController::class, 'getAllPerformaSheets']);
 	Route::get('/get-performa-manager-emp', [PerformaSheetController::class, 'getPerformaManagerEmp']);
 	Route::post('/add-leave', [LeaveController::class, 'Addleave']);
+	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
+	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
 });
 
 });
