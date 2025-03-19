@@ -59,8 +59,10 @@ class LeaveController extends Controller
 	
 	 public function getallLeavesForHr(Request $request)
     {
-        // Fetch all leaves for all users
-        $leaves = LeavePolicy::all();
+        // Fetch all leaves for all users with their associated user details (e.g., name)
+        $leaves = LeavePolicy::with('user:id,name') // Load the user relationship and select only the id and name fields
+                             ->get();
+
         // If no leaves are found, return a message saying "No leaves found"
         if ($leaves->isEmpty()) {
             return response()->json([
@@ -70,10 +72,26 @@ class LeaveController extends Controller
             ]);
         }
 
-        // Return the response with leave data if found
+        // Return the response with leave data if found, including username
+        $leaveData = $leaves->map(function ($leave) {
+            return [
+                'id' => $leave->id,
+                'user_id' => $leave->user_id,
+                'user_name' => $leave->user->name,  // Access the username from the loaded relationship
+                'start_date' => $leave->start_date,
+                'end_date' => $leave->end_date,
+                'leave_type' => $leave->leave_type,
+                'reason' => $leave->reason,
+                'status' => $leave->status,
+                'hours' => $leave->hours,
+                'created_at' => $leave->created_at,
+                'updated_at' => $leave->updated_at
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $leaves
+            'data' => $leaveData
         ]);
     }
 	
