@@ -231,10 +231,11 @@ public function getUserProjects()
 public function getAssignedAllProjects()
 {
     $user = auth()->user();
-    // Fetch all projects with related client, assignedBy, assignedUsers, and projectManager
+
+    // Fetch all projects with related client, assignedBy, assignedUsers, and projectManagers
     $projects = Project::with('client', 'assignedBy', 'assignedUsers:id,name,email', 'projectManager:id,name')->get();
-	// Format the response to ensure proper structure
-    // Remove pivot from assigned users
+
+    // Format the response to ensure proper structure
     $projects = $projects->map(function ($project) {
         return [
             'id' => $project->id,
@@ -243,16 +244,20 @@ public function getAssignedAllProjects()
             'deadline' => $project->deadline,
             'client' => $project->client,
             'assigned_by' => $project->assignedBy,
-            'project_manager' => $project->projectManager 
-                ? ['id' => $project->projectManager->id, 'name' => $project->projectManager->name] 
+            'project_manager' => $project->projectManager->isNotEmpty() 
+                ? $project->projectManager->map(function ($manager) {
+                    return ['id' => $manager->id, 'name' => $manager->name];
+                }) 
                 : 'No project manager assigned',
             'assigned_users' => $project->assignedUsers->makeHidden('pivot')->isEmpty() 
-                ? 'Project not assign to anyone yet' 
+                ? 'Project not assigned to anyone yet' 
                 : $project->assignedUsers
         ];
     });
-	return ApiResponse::success('Projects fetched successfully', $projects);
+
+    return ApiResponse::success('Projects fetched successfully', $projects);
 }
+
 
 /*public function getProjectEmployee()
 {
