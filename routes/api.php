@@ -66,6 +66,7 @@ Route::middleware('auth:api')->group(function () {
 	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
 	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
 	Route::get('/showmanager-leavesfor-teamemploye', [LeaveController::class, 'showmanagerLeavesForTeamemploye']);
+	Route::post('/approve-leave', [LeaveController::class, 'approveLeave']);
 });
 
 });

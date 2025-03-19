@@ -180,4 +180,40 @@ class LeaveController extends Controller
             'data' => $leaveData // Include employee leaves
         ]);
 	}
+	
+	// Method to approve or reject the leave request
+    // Method to approve or reject the leave request
+    public function approveLeave(Request $request)
+    {
+        // Validate the request to ensure each item in the array has `id` and `status`
+        $request->validate([
+            '*' => 'required|array', // Ensure each element in the array is an object
+            '*.id' => 'required|exists:leavespolicy,id', // Ensure each leave ID exists in the leavespolicy table
+            '*.status' => 'required|in:Approved,Rejected', // Status must be either Approved or Rejected
+        ]);
+
+        $user = auth()->user(); // Get the authenticated user (Manager)
+
+        $updatedLeaves = [];
+
+        // Loop through each leave object and update its status
+        foreach ($request->all() as $leaveData) {
+            $leave = LeavePolicy::find($leaveData['id']); // Find the leave record by ID
+
+            // Update the leave status and the manager who approved it
+            $leave->status = $leaveData['status'];
+            $leave->approved_bymanager = $user->id; // Set the manager's ID (authenticated user)
+            $leave->save(); // Save the updated leave record
+
+            // Add the updated leave to the response array
+            $updatedLeaves[] = $leave;
+        }
+
+        // Return success response with the updated leave data
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave status updated successfully',
+            'data' => $updatedLeaves
+        ]);
+    }
 }
