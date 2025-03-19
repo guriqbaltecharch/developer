@@ -18,7 +18,6 @@ class ClientController extends Controller
     {
           $validatedData = $request->validate([
 			'name' => 'required|string|max:255',
-			'client_project_id' => 'nullable|string|unique:clients',
 			'contact_detail' => 'nullable|string',
 			'hire_through' => 'nullable|string|max:255', // ✅ New field
 			'hire_on_id' => 'nullable|string|max:255', // ✅ New field (must exist in users table)
