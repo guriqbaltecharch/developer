@@ -230,12 +230,15 @@ public function getUserProjects()
 // Projects with  EMployess by all project manager 
 public function getAssignedAllProjects()
 {
-    $user = auth()->user();
+    // ✅ Fetch all projects with related data
+    $projects = Project::with([
+        'client', 
+        'assignedBy', 
+        'assignedUsers:id,name,email', 
+        'projectManager:id,name'
+    ])->get();
 
-    // Fetch all projects with related client, assignedBy, assignedUsers, and projectManagers
-    $projects = Project::with('client', 'assignedBy', 'assignedUsers:id,name,email', 'projectManager:id,name')->get();
-
-    // Format the response to ensure proper structure
+    // ✅ Format response for clean structure
     $projects = $projects->map(function ($project) {
         return [
             'id' => $project->id,
@@ -244,19 +247,21 @@ public function getAssignedAllProjects()
             'deadline' => $project->deadline,
             'client' => $project->client,
             'assigned_by' => $project->assignedBy,
-            'project_manager' => $project->projectManager->isNotEmpty() 
+            'project_managers' => $project->projectManager->isNotEmpty()
                 ? $project->projectManager->map(function ($manager) {
                     return ['id' => $manager->id, 'name' => $manager->name];
-                }) 
+                })
                 : 'No project manager assigned',
-            'assigned_users' => $project->assignedUsers->makeHidden('pivot')->isEmpty() 
-                ? 'Project not assigned to anyone yet' 
+            'assigned_users' => $project->assignedUsers->isEmpty()
+                ? 'Project not assigned to anyone yet'
                 : $project->assignedUsers
         ];
     });
 
     return ApiResponse::success('Projects fetched successfully', $projects);
 }
+
+
 
 
 /*public function getProjectEmployee()
