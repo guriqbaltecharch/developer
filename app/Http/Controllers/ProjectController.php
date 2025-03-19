@@ -177,12 +177,20 @@ public function getUserProjects()
     return ApiResponse::success('User projects fetched successfully', $projects);
 }
 
+
+	
 	public function getAssignedProjects()
-	{
-		$user = auth()->user();
-		$projects = Project::whereRaw("JSON_CONTAINS(project_manager_id, ?)", [$user->id])->with('client', 'assignedBy')->get();
-		return ApiResponse::success('Projects fetched successfully', $projects);
-	}
+{
+    $user = auth()->user();
+
+    // Ensure the ID is passed as a JSON string
+    $projects = Project::whereRaw("JSON_CONTAINS(project_manager_id, ?, '$')", [json_encode($user->id)])
+        ->with('client', 'assignedBy')
+        ->get();
+
+    return ApiResponse::success('Projects fetched successfully', $projects);
+}
+
 
 
 	public function update(Request $request, $id)
