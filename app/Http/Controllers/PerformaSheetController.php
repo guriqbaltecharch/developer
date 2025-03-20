@@ -26,10 +26,12 @@ class PerformaSheetController extends Controller
                 Rule::exists('project_user', 'project_id')->where(fn($query) => $query->where('user_id', $user->id))
             ],
             'data.*.date' => 'required|date_format:Y-m-d',
-            'data.*.time' => ['required', 'regex:/^\d{2}:\d{2}$/'], // ✅ Ensures HH:mm format
+            'data.*.time' => ['required', 'regex:/^\d{2}:\d{2}$/'], // HH:mm format
             'data.*.work_type' => 'required|string|max:255',
             'data.*.activity_type' => 'required|string|max:255',
-            'data.*.narration' => 'nullable|string'
+            'data.*.narration' => 'nullable|string',
+            'data.*.project_type' => 'required|string|max:255', // ✅ New field
+            'data.*.project_type_status' => 'required|string|max:255', // ✅ New field
         ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
         return response()->json([
@@ -87,10 +89,12 @@ class PerformaSheetController extends Controller
                     'data' => json_encode([
                         'project_id' => $projectId,
                         'date' => $record['date'],
-                        'time' => $record['time'], // ✅ No split, just add the full time
+                        'time' => $record['time'],
                         'work_type' => $record['work_type'],
                         'narration' => $record['narration'],
                         'activity_type' => $originalActivityType,
+                        'project_type' => $record['project_type'], // ✅ New field
+                        'project_type_status' => $record['project_type_status'], // ✅ New field
                         'message' => "$message - Hours added without limit check"
                     ])
                 ]);
@@ -111,6 +115,8 @@ class PerformaSheetController extends Controller
                                 'work_type' => $record['work_type'],
                                 'narration' => $record['narration'],
                                 'activity_type' => "Billable",
+                                'project_type' => $record['project_type'], // ✅ New field
+                                'project_type_status' => $record['project_type_status'], // ✅ New field
                                 'message' => "Billable - Only remaining hours added before limit exceeded"
                             ])
                         ]);
@@ -125,7 +131,9 @@ class PerformaSheetController extends Controller
                                 'time' => sprintf("%02d:00", $extraHours),
                                 'work_type' => $record['work_type'],
                                 'narration' => $record['narration'],
-                                'activity_type' => "Non Billable", // ✅ Extra hours are Non Billable
+                                'activity_type' => "Non Billable",
+                                'project_type' => $record['project_type'], // ✅ New field
+                                'project_type_status' => $record['project_type_status'], // ✅ New field
                                 'message' => "Extra hours marked as Non Billable"
                             ])
                         ]);
@@ -149,6 +157,8 @@ class PerformaSheetController extends Controller
                             'work_type' => $record['work_type'],
                             'narration' => $record['narration'],
                             'activity_type' => "Billable",
+                            'project_type' => $record['project_type'], // ✅ New field
+                            'project_type_status' => $record['project_type_status'], // ✅ New field
                             'message' => "Billable - Hours added successfully"
                         ])
                     ]);
@@ -171,6 +181,7 @@ class PerformaSheetController extends Controller
         'exceeded_projects' => $limitExceededProjects
     ]);
 }
+
 
 	public function getUserPerformaSheets()
 	{
