@@ -32,6 +32,7 @@ class PerformaSheetController extends Controller
             'data.*.narration' => 'nullable|string',
             'data.*.project_type' => 'required|string|max:255', // ✅ New field
             'data.*.project_type_status' => 'required|string|max:255', // ✅ New field
+			
         ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
         return response()->json([
@@ -375,6 +376,7 @@ class PerformaSheetController extends Controller
     $user = auth()->user();
 
     try {
+        // ✅ Validate the request, including the new fields
         $validatedData = $request->validate([
             'id' => 'required|exists:performa_sheets,id',
             'data' => 'required|array',
@@ -388,10 +390,12 @@ class PerformaSheetController extends Controller
             'data.time' => 'required|date_format:H:i',
             'data.work_type' => 'required|string|max:255',
             'data.activity_type' => 'required|string|max:255',
-            'data.narration' => 'nullable|string' 
+            'data.narration' => 'nullable|string',
+            'data.project_type' => 'required|string|max:255', // ✅ New field
+            'data.project_type_status' => 'required|string|max:255' // ✅ New field
         ]);
 
-        // ✅ Find Performa Sheet
+        // ✅ Find Performa Sheet for the given ID and user
         $performaSheet = PerformaSheet::where('id', $validatedData['id'])
                                       ->where('user_id', $user->id)
                                       ->first();
@@ -413,7 +417,7 @@ class PerformaSheetController extends Controller
 
         // ✅ If Data is Changed, Update Status Accordingly
         if ($isChanged) {
-            if ($oldStatus === 'Approved' || $oldStatus === 'Rejected' || $oldStatus === 'approved' || $oldStatus === 'rejected') {
+            if (in_array(strtolower($oldStatus), ['approved', 'rejected'])) {
                 $performaSheet->status = 'Pending'; // ✅ Change only if previous status was Approved/Rejected
             }
             $performaSheet->data = json_encode($newData);
@@ -442,6 +446,7 @@ class PerformaSheetController extends Controller
         ], 500);
     }
 }
+
 
 
 
