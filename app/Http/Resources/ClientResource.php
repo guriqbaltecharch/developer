@@ -7,16 +7,18 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClientResource extends JsonResource
 {
-    public function toArray(Request $request)
+    public function toArray($request)
     {
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'client_type' => $this->client_type, // ✅ Ensure it's included
             'contact_detail' => $this->contact_detail,
-            'hire_through' => $this->hire_through, // ✅ Ensure these exist
-            'hire_on_id' => $this->hire_on_id, // ✅ Ensure these exist
+            'hire_on_id' => $this->hire_on_id,
+            'company_name' => $this->company_name,
+            'company_address' => $this->company_address,
             'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'updated_at' => $this->updated_at
         ];
     }
 }
