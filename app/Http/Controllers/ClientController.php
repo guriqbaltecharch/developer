@@ -48,18 +48,41 @@ class ClientController extends Controller
 
     public function update(Request $request, $id)
 {
-    $client = Client::findOrFail($id);
-    
-    $validatedData = $request->validate([
-        'name' => 'required|string|max:255',
-        'contact_detail' => 'nullable|string',
-        'hire_through' => 'nullable|string|max:255',
-        'hire_on_id' => 'nullable|string|max:255',
-    ]);
+    $client = Client::find($id);
 
+    if (!$client) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Client not found'
+        ], 404);
+    }
+
+    // ✅ Base validation
+    $rules = [
+        'client_type' => 'required|string|max:255',
+        'name' => 'required|string|max:255',
+        'contact_detail' => 'nullable|string|max:255'
+    ];
+
+    // ✅ Conditional validation based on `client_type`
+    if ($request->client_type === "Hired on Upwork") {
+        $rules['hire_on_id'] = 'nullable|string|max:255';
+    } else {
+        $rules['company_name'] = 'nullable|string|max:255';
+        $rules['company_address'] = 'nullable|string|max:255';
+    }
+
+    // ✅ Apply validation rules
+    $validatedData = $request->validate($rules);
+
+    // ✅ Update the client
     $client->update($validatedData);
 
-    return ApiResponse::success('Client updated successfully', new ClientResource($client));
+    return response()->json([
+        'success' => true,
+        'message' => 'Client updated successfully',
+        'data' => $client
+    ]);
 }
 
 
