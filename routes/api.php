@@ -10,6 +10,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PerformaSheetController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\TaskController;
 
 
 // Route::get('/user', function (Request $request) {
@@ -62,7 +63,16 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/get-performa-sheet', [PerformaSheetController::class, 'getUserPerformaSheets']);
     Route::get('/get-all-performa-sheets', [PerformaSheetController::class, 'getAllPerformaSheets']);
 	Route::get('/get-performa-manager-emp', [PerformaSheetController::class, 'getPerformaManagerEmp']);
+	
+	// Leaves API
 	Route::post('/add-leave', [LeaveController::class, 'Addleave']);
+	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
+	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
+	Route::get('/showmanager-leavesfor-teamemploye', [LeaveController::class, 'showmanagerLeavesForTeamemploye']);
+	Route::post('/approve-leave', [LeaveController::class, 'approveLeave']);
+	
+	// Tasks API
+	Route::post('/add-task', [TaskController::class, 'AddTasks']);
 	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
 	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
 	Route::get('/showmanager-leavesfor-teamemploye', [LeaveController::class, 'showmanagerLeavesForTeamemploye']);
