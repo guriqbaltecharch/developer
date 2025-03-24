@@ -18,16 +18,33 @@ class ClientController extends Controller
 
     public function store(Request $request)
     {
-          $validatedData = $request->validate([
+          // ✅ Base validation (always required)
+		$rules = [
+			'client_type' => 'required|string|max:255',
 			'name' => 'required|string|max:255',
-			'contact_detail' => 'nullable|string',
-			'hire_through' => 'nullable|string|max:255', // ✅ New field
-			'hire_on_id' => 'nullable|string|max:255', // ✅ New field (must exist in users table)
-		]);
-//return response()->json(['message' => 'Test']);
-        $client = Client::create($validatedData);
-        return ApiResponse::success('Client created successfully', $client, 201);
-    }
+			'contact_detail' => 'nullable|string|max:255'
+		];
+
+		// ✅ Conditional validation based on `client_type`
+		if ($request->client_type === "Hired on Upwork") {
+			$rules['hire_on_id'] = 'nullable|string|max:255'; // ✅ Required for Upwork clients
+		} else {
+			$rules['company_name'] = 'nullable|string|max:255';  // ✅ Required for non-Upwork clients
+			$rules['company_address'] = 'nullable|string|max:255';
+		}
+
+	// ✅ Apply validation rules
+	$validatedData = $request->validate($rules);
+
+	// ✅ Store the client
+	$client = Client::create($validatedData);
+
+	return response()->json([
+		'success' => true,
+		'message' => 'Client created successfully',
+		'data' => $client
+	]);
+}
 
     public function update(Request $request, $id)
 {

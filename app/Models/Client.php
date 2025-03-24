@@ -9,7 +9,7 @@ class Client extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name',  'contact_detail', 'hire_through', 'hire_on_id'];
+    protected $fillable = ['client_type', 'name',  'contact_detail', 'hire_on_id', 'company_name', 'company_address',];
 
 
     public function projects()

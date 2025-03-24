@@ -12,7 +12,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('clients', function (Blueprint $table) {
-            $table->string('hire_through')->nullable()->after('contact_detail'); // ✅ Add hire_through
+            //$table->string('hire_through')->nullable()->after('contact_detail'); // ✅ Add hire_through
             $table->string('hire_on_id')->nullable()->after('hire_through'); // ✅ Add hire_on_id as a string
         });
     }
@@ -20,7 +20,8 @@ return new class extends Migration
     public function down()
     {
         Schema::table('clients', function (Blueprint $table) {
-            $table->dropColumn(['hire_through', 'hire_on_id']); // ✅ Remove both columns if rolled back
+            //$table->dropColumn(['hire_through', 'hire_on_id']); // ✅ Remove both columns if rolled back
+			$table->dropColumn(['hire_on_id']); // ✅ Remove both columns if rolled back
         });
     }
 };
