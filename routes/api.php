@@ -74,10 +74,7 @@ Route::middleware('auth:api')->group(function () {
 	// Tasks API
 	Route::post('/add-task', [TaskController::class, 'AddTasks']);
 	Route::put('/getalltaskofprojectbyid/{id}', [TaskController::class, 'getAllTaskofProjectById']);
-	Route::get('/getall-leave-forhr', [LeaveController::class, 'getallLeavesForHr']);
-	Route::get('/getleaves-byemploye', [LeaveController::class, 'getLeavesByemploye']);
-	Route::get('/showmanager-leavesfor-teamemploye', [LeaveController::class, 'showmanagerLeavesForTeamemploye']);
-	Route::post('/approve-leave', [LeaveController::class, 'approveLeave']);
+	Route::post('/get-emp-tasksby-project', [TaskController::class, 'getEmployeTasksbyProject']);
 	
 	Route::get('/getproject/{id}', [ProjectController::class, 'getProjectById']);
 

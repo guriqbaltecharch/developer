@@ -60,6 +60,7 @@ class ProjectController extends Controller
 	
 	public function assignProjectManagerProjectToEmployee(Request $request)
 	{
+		$projectManagerId = auth()->user()->id;
 		 // ✅ Validate Request Data
     $validatedData = $request->validate([
         'project_id' => 'required|exists:projects,id',
@@ -98,6 +99,7 @@ class ProjectController extends Controller
             $insertedId = DB::table('project_user')->insertGetId([
                 'project_id' => $validatedData['project_id'],
                 'user_id' => $employeeId,
+				'project_manager_id' => $projectManagerId,
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
@@ -105,7 +107,8 @@ class ProjectController extends Controller
             $insertedData[] = [
                 'id' => $insertedId,  // ✅ Inserted increment ID
                 'project_id' => $validatedData['project_id'],
-                'user_id' => $employeeId
+                'user_id' => $employeeId,
+				'project_manager_id' => $projectManagerId,
             ];
         }
     } catch (\Exception $e) {
@@ -262,10 +265,6 @@ public function getAssignedAllProjects()
 
     return ApiResponse::success('Projects fetched successfully', $projects);
 }
-
-
-
-
 
 
 /*public function getProjectEmployee()
