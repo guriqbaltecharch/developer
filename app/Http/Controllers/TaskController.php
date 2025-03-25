@@ -232,4 +232,63 @@ class TaskController extends Controller
             ], 500);
         }
     }
+	
+	public function ApproveTaskofProject(Request $request)
+    {
+        try {
+            // ✅ Validate request body
+            $validatedData = $request->validate([
+                'id' => 'required|exists:tasks,id',
+                'status' => 'required|in:To do,In Progress,Completed,Cancel'
+            ]);
+
+            // ✅ Fetch the task
+            $task = Task::find($validatedData['id']);
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.'
+                ], 404);
+            }
+
+            // ✅ Get the logged-in user (Project Manager)
+            $projectManagerId = Auth::user()->id;
+
+            // ✅ Ensure only assigned Project Manager can update status
+            if ($task->project_manager_id != $projectManagerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to approve this task.'
+                ], 403);
+            }
+
+            // ✅ Update task status
+            $task->status = $validatedData['status'];
+            $task->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task status updated successfully.',
+                'data' => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'updated_by' => [
+                        'id' => $projectManagerId,
+                        'name' => Auth::user()->name
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating task status: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
