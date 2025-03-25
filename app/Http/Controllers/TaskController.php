@@ -21,7 +21,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'status' => 'required|in:To do,In Progress,Completed,Cancel',
             'project_id' => 'nullable|exists:projects,id',
-            'project_manager_id' => 'nullable|exists:users,id', // ✅ Allow passing project_manager_id
+            //'project_manager_id' => 'nullable|exists:users,id', // ✅ Allow passing project_manager_id
             'hours' => 'nullable|integer|min:1',
             'deadline' => 'nullable|date'
         ]);
