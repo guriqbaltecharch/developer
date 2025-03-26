@@ -328,7 +328,6 @@ class TaskController extends Controller
             $validatedData = $request->validate([
                 'title' => 'sometimes|string|max:255',
                 'description' => 'sometimes|nullable|string',
-                'status' => 'sometimes|in:To do,In Progress,Completed,Cancel',
                 'hours' => 'sometimes|integer|min:1',
                 'deadline' => 'sometimes|date'
             ]);
