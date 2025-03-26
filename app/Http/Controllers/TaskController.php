@@ -19,20 +19,20 @@ class TaskController extends Controller
      */
     public function AddTasks(Request $request)
     {
-        $user = Auth::user(); // ✅ Get logged-in user ID
-        $userId = $user->id;
+        try {
+            $user = Auth::user(); // ✅ Get logged-in user ID
 
-        $validatedData = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:To do,In Progress,Completed,Cancel',
-            'project_id' => 'nullable|exists:projects,id',
-            'hours' => 'nullable|integer|min:1',
-            'deadline' => 'nullable|date'
-        ]);
+            // ✅ Validate request data
+            $validatedData = $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'status' => 'required|in:To do,In Progress,Completed,Cancel',
+                'project_id' => 'required|exists:projects,id',
+                'hours' => 'nullable|integer|min:1',
+                'deadline' => 'nullable|date'
+            ]);
 
-        // ✅ If a project_id is provided, check if the logged-in user is in the JSON array
-        if (!empty($validatedData['project_id'])) {
+            // ✅ Get the project from the database
             $project = Project::find($validatedData['project_id']);
 
             if (!$project) {
@@ -42,27 +42,56 @@ class TaskController extends Controller
                 ], 404);
             }
 
-            // ✅ Decode project_manager_id JSON array
-            $assignedManagers = json_decode($project->project_manager_id, true);
+            // ✅ Get the current total_hours from the project
+            $currentHours = $project->total_hours ?? 0; // ✅ If null, default to 0
 
-            if (!is_array($assignedManagers) || !in_array($userId, $assignedManagers)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You are not assigned to this project.'
-                ], 403);
+            // ✅ Add new hours to the existing total_hours
+            $newTotalHours = $currentHours + ($validatedData['hours'] ?? 0);
+
+            // ✅ Create the task
+            $task = Task::create([
+                'title' => $validatedData['title'],
+                'description' => $validatedData['description'],
+                'status' => $validatedData['status'],
+                'project_id' => $validatedData['project_id'],
+                'project_manager_id' => $user->id, // ✅ Assign logged-in user as project manager
+                'hours' => $validatedData['hours'],
+                'deadline' => $validatedData['deadline']
+            ]);
+
+            // ✅ Step 1: Find the highest `deadline` for the same `project_id`
+            $highestDeadline = Task::where('project_id', $validatedData['project_id'])
+                ->max('deadline');
+
+            // ✅ Step 2: Update the `deadline` in the projects table
+            if ($highestDeadline) {
+                $project->update([
+                    'total_hours' => $newTotalHours, // ✅ Update total hours
+                    'deadline' => $highestDeadline  // ✅ Update with the latest deadline
+                ]);
             }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task created successfully and project deadline updated.',
+                'project' => [
+                    'id' => $project->id,
+                    'name' => $project->project_name,
+                    'updated_total_hours' => $newTotalHours,
+                    'updated_deadline' => $highestDeadline
+                ],
+                'task' => $task
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error adding task: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // ✅ Always set project_manager_id as logged-in user ID
-        $validatedData['project_manager_id'] = $userId;
-
-        $task = Task::create($validatedData);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Task created successfully',
-            'data' => new TaskResource($task)
-        ]);
     }
 	
 	public function getAllTaskofProjectById($id)

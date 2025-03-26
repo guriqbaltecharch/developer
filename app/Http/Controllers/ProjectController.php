@@ -26,7 +26,7 @@ class ProjectController extends Controller
             'requirements' => 'nullable|string',
             'budget' => 'nullable|numeric',
             'deadline' => 'nullable|date',
-            'total_hours' => 'required',
+            'total_hours' => 'nullable|string',
         ]);
 
         $project = Project::create($validatedData);
