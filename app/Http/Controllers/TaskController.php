@@ -400,4 +400,63 @@ class TaskController extends Controller
             ], 500);
         }
     }
+	
+	public function DeleteTasks(Request $request, $id)
+    {
+		try {
+            // ✅ Step 1: Find the task by ID
+            $task = Task::find($id);
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.'
+                ], 404);
+            }
+
+            // ✅ Get the project associated with this task
+            $project = Project::find($task->project_id);
+
+            if (!$project) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Project not found.'
+                ], 404);
+            }
+
+            // ✅ Step 2: Subtract task `hours` from `projects` table
+            $previousHours = $task->hours ?? 0; // ✅ Get existing task hours (if null, default to 0)
+            $newTotalHours = max(0, $project->total_hours - $previousHours); // ✅ Ensure it never goes below 0
+            $project->update(['total_hours' => $newTotalHours]);
+
+            // ✅ Step 3: Delete the task
+            $task->delete();
+
+            // ✅ Step 4: Get the highest `deadline` from remaining tasks for the same `project_id`
+            $highestDeadline = Task::where('project_id', $task->project_id)->max('deadline');
+
+            // ✅ Step 5: Update project deadline with highest deadline or set null if no tasks left
+            $project->update(['deadline' => $highestDeadline]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task deleted successfully and project details updated.',
+                'project' => [
+                    'id' => $project->id,
+                    'name' => $project->project_name,
+                    'updated_total_hours' => $project->total_hours,
+                    'updated_deadline' => $highestDeadline
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error deleting task: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

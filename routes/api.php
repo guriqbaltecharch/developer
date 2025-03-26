@@ -78,6 +78,7 @@ Route::middleware('auth:api')->group(function () {
 	Route::post('/get-emp-tasksby-project', [TaskController::class, 'getEmployeTasksbyProject']);
 	Route::post('/approve-task-ofproject', [TaskController::class, 'ApproveTaskofProject']);
 	Route::put('/edit-task/{id}', [TaskController::class, 'EditTasks']);
+	Route::delete('/delete-task/{id}', [TaskController::class, 'DeleteTasks']);
 //Route::put('/projects/{id}', [ProjectController::class, 'update']);	
 	
 
