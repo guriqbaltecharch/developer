@@ -320,4 +320,85 @@ class TaskController extends Controller
             ], 500);
         }
     }
+	
+	public function EditTasks(Request $request, $id)
+    {
+		try {
+            // ✅ Validate request
+            $validatedData = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'description' => 'sometimes|nullable|string',
+                'status' => 'sometimes|in:To do,In Progress,Completed,Cancel',
+                'hours' => 'sometimes|integer|min:1',
+                'deadline' => 'sometimes|date'
+            ]);
+
+            // ✅ Step 1: Find the task by ID
+            $task = Task::find($id);
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.'
+                ], 404);
+            }
+
+            // ✅ Get the project associated with this task
+            $project = Project::find($task->project_id);
+
+            if (!$project) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Project not found.'
+                ], 404);
+            }
+
+            // ✅ Step 2: Adjust `hours` in `projects` table
+            if (isset($validatedData['hours'])) {
+                $previousHours = $task->hours ?? 0; // ✅ Get existing task hours (if null, default to 0)
+                $newHours = $validatedData['hours'];
+
+                // ✅ Calculate correct total hours (subtract previous, add new)
+                $newTotalHours = max(0, ($project->total_hours - $previousHours) + $newHours);
+
+                // ✅ Update project total hours
+                $project->update(['total_hours' => $newTotalHours]);
+
+                // ✅ Update task with new hours
+                $task->hours = $newHours;
+            }
+
+            // ✅ Step 3: Update task fields dynamically
+            $task->update($validatedData);
+
+            // ✅ Step 4: Get the highest `deadline` from tasks for the same `project_id`
+            $highestDeadline = Task::where('project_id', $task->project_id)->max('deadline');
+
+            // ✅ Step 5: Update project deadline with highest deadline
+            if ($highestDeadline) {
+                $project->update(['deadline' => $highestDeadline]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task updated successfully, project details also updated.',
+                'project' => [
+                    'id' => $project->id,
+                    'name' => $project->project_name,
+                    'updated_total_hours' => $project->total_hours,
+                    'updated_deadline' => $highestDeadline
+                ],
+                'task' => $task
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating task: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
