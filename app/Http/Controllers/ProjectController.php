@@ -244,8 +244,7 @@ public function getUserProjects()
 // Projects with  EMployess by all project manager 
 public function getAssignedAllProjects()
 {
-	
-        try {
+	try {
             // ✅ Fetch all projects with assigned users and project managers
             $projects = Project::with([
                 'assignedEmployees:id,name,email',  // ✅ Get assigned users (employees)
@@ -259,9 +258,17 @@ public function getAssignedAllProjects()
 
                 // ✅ Fetch project managers from `users` table
                 if (!empty($managerIds)) {
-                    $managers = User::whereIn('id', $managerIds)->pluck('name')->toArray();
+                    $managers = User::whereIn('id', $managerIds)
+                        ->get(['id', 'name'])
+                        ->map(function ($manager) {
+                            return [
+                                'id' => $manager->id,
+                                'name' => $manager->name
+                            ];
+                        })
+                        ->toArray();
                 } else {
-                    $managers = ["Not Assigned to Any Manager"];
+                    $managers = [["id" => null, "name" => "Not Assigned to Any Manager"]];
                 }
 
                 return [
@@ -278,7 +285,7 @@ public function getAssignedAllProjects()
                             'email' => $user->email,
                         ];
                     }),
-                    'project_managers' => $managers // ✅ Project managers' names now appear correctly
+                    'project_managers' => $managers // ✅ Now includes ID & Name
                 ];
             });
 
@@ -340,5 +347,58 @@ public function getProjectManagerEmployee()
         'employees' => $employees
     ]);
 }
+
+public function removeProjectManagers(Request $request)
+    {
+        try {
+            // ✅ Validate request data
+            $validatedData = $request->validate([
+                'project_id' => 'required|exists:projects,id',
+                'manager_ids' => 'required|array|min:1',
+                'manager_ids.*' => 'integer|exists:users,id'
+            ]);
+
+            // ✅ Find the project
+            $project = Project::find($validatedData['project_id']);
+
+            // ✅ Decode existing managers from JSON
+            $existingManagers = json_decode($project->project_manager_id, true) ?? [];
+
+            // ✅ Filter out the managers that need to be removed
+            $updatedManagers = array_diff($existingManagers, $validatedData['manager_ids']);
+
+            // ✅ Remove users from `project_user` table where `project_id` and `project_manager_id` match
+            $deletedRows = DB::table('project_user')
+                ->where('project_id', $validatedData['project_id'])
+                ->whereIn('project_manager_id', $validatedData['manager_ids'])
+                ->delete();
+
+            // ✅ If no managers remain, set `project_manager_id` to NULL
+            if (empty($updatedManagers)) {
+                $project->project_manager_id = null;
+            } else {
+                $project->project_manager_id = json_encode(array_values($updatedManagers)); // ✅ Re-index array
+            }
+
+            // ✅ Save the updated project
+            $project->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Project managers removed successfully.',
+                'deleted_users' => $deletedRows,
+                'remaining_managers' => $project->project_manager_id ? json_decode($project->project_manager_id) : null
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error removing project managers: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 }

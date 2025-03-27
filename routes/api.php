@@ -54,6 +54,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/assign-projectmanager-projectto-employee', [ProjectController::class, 'assignProjectManagerProjectToEmployee']);
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
     Route::get('/get-project-manager-employee', [ProjectController::class, 'getProjectManagerEmployee']);
+	Route::post('/remove-project-managers', [ProjectController::class, 'removeProjectManagers']);
+
 	
 	// Performa API
 	Route::post('/add-performa-sheets', [PerformaSheetController::class, 'addPerformaSheets']);
