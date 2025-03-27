@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Project;
+use App\Models\Client;
 use App\Models\User;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
@@ -243,27 +244,59 @@ public function getUserProjects()
 // Projects with  EMployess by all project manager 
 public function getAssignedAllProjects()
 {
-    // ✅ Fetch all projects with related data
-    $projects = Project::with(['client', 'assignedBy', 'assignedUsers:id,name,email'])->get();
+	
+        try {
+            // ✅ Fetch all projects with assigned users and project managers
+            $projects = Project::with([
+                'assignedEmployees:id,name,email',  // ✅ Get assigned users (employees)
+                'client:id,name'                    // ✅ Get client details
+            ])->get();
 
-    // ✅ Manually decode project_manager_id JSON and fetch manager details
-    $projects = $projects->map(function ($project) {
-        $managerIds = json_decode($project->project_manager_id, true); // Decode JSON
-        $managers = $managerIds ? User::whereIn('id', $managerIds)->get(['id', 'name']) : collect();
+            // ✅ Process data for response
+            $formattedProjects = $projects->map(function ($project) {
+                // ✅ Decode project_manager_id (handles cases where it is stored as JSON)
+                $managerIds = json_decode($project->project_manager_id, true) ?? [];
 
-        return [
-            'id' => $project->id,
-            'project_name' => $project->project_name,
-            'budget' => $project->budget,
-            'deadline' => $project->deadline,
-            'client' => $project->client,
-            'assigned_by' => $project->assignedBy,
-            'project_managers' => $managers->isNotEmpty() ? $managers : 'No project manager assigned',
-            'assigned_users' => $project->assignedUsers->isEmpty() ? 'Project not assigned to anyone yet' : $project->assignedUsers
-        ];
-    });
+                // ✅ Fetch project managers from `users` table
+                if (!empty($managerIds)) {
+                    $managers = User::whereIn('id', $managerIds)->pluck('name')->toArray();
+                } else {
+                    $managers = ["Not Assigned to Any Manager"];
+                }
 
-    return ApiResponse::success('Projects fetched successfully', $projects);
+                return [
+                    'id' => $project->id,
+                    'project_name' => $project->project_name,
+                    'client_name' => $project->client ? $project->client->name : 'No Client Assigned',
+                    'budget' => $project->budget,
+                    'deadline' => $project->deadline,
+                    'total_hours' => $project->total_hours,
+                    'assigned_users' => $project->assignedEmployees->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                        ];
+                    }),
+                    'project_managers' => $managers // ✅ Project managers' names now appear correctly
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Project assignments fetched successfully.',
+                'data' => $formattedProjects
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching project assignments: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
 }
 
 
