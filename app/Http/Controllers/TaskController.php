@@ -285,12 +285,12 @@ class TaskController extends Controller
             $projectManagerId = Auth::user()->id;
 
             // ✅ Ensure only assigned Project Manager can update status
-            if ($task->project_manager_id != $projectManagerId) {
+            /*if ($task->project_manager_id != $projectManagerId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You are not authorized to approve this task.'
+                    'message' => 'You are not authorized to approve this taskxxxx.'
                 ], 403);
-            }
+            }*/
 
             // ✅ Update task status
             $task->status = $validatedData['status'];
