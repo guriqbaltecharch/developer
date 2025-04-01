@@ -99,7 +99,7 @@ public function GraphTotalWorkingHour(Request $request)
 
     // Return JSON response
     return response()->json([
-        'times' => $times,
+       // 'times' => $times,
         'total_billable_hours' => $formattedBillableTime,
         'total_nonbillable_hours' => $formattedNonBillableTime,
         'total_inhouse_hours' => $formattedInhouseTime
