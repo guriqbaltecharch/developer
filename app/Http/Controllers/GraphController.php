@@ -16,79 +16,93 @@ use Illuminate\Support\Facades\Log;
 
 class GraphController extends Controller
 {
-    public function GraphTotalWorkingHour(Request $request)
+  
+
+public function GraphTotalWorkingHour(Request $request)
 {
-    // Query to get all rows from the performa_sheets table with 'id' and 'data'
-    $data = DB::table('performa_sheets')->select('id', 'data')->get();
+    // Request se start aur end date lena (Format: YYYY-MM-DD)
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+
+    // Query ko filter karna based on date range
+    $dataQuery = DB::table('performa_sheets')->select('id', 'data');
+    $data = $dataQuery->get();
 
     // Initialize arrays and total time counters
     $times = [];
     $totalBillableMinutes = 0;
     $totalNonBillableMinutes = 0;
-	$totalInhouseMinutes = 0;
+    $totalInhouseMinutes = 0;
 
     // Loop through each row and process the data
     foreach ($data as $row) {
-        // First decode the escaped string
+        // Decode JSON data
         $decodedString = json_decode($row->data, true);
-
-        // Check if the first decoding was successful
         if ($decodedString === null) {
-            Log::warning('Invalid JSON in data field for ID ' . $row->id);
-            continue; // Skip this row if JSON is invalid
+            Log::warning("Invalid JSON format in data field for ID: {$row->id}");
+            continue;
         }
 
-        // Now decode the JSON data (which might still have escape characters)
-        $decodedData = json_decode($decodedString, true);
-
-        // Check if decoding was successful
-        if ($decodedData === null) {
-            Log::warning('Invalid inner JSON structure for ID ' . $row->id);
-            continue; // Skip this row if inner JSON is invalid
+        // To handle the case where data might be double-escaped
+        if (is_string($decodedString)) {
+            $decodedString = json_decode($decodedString, true);
         }
 
-        // Debugging: Log the decoded data to check its structure
-        Log::info('Decoded Data:', ['data' => $decodedData]);
+        // Check if decoded data is an array and if 'date' and 'time' exist
+        if (!isset($decodedString['date']) || !isset($decodedString['time'])) {
+            Log::warning("Missing date or time in data field for ID: {$row->id}");
+            continue;
+        }
 
-        // Store all times, regardless of activity_type
-        if (isset($decodedData['time'])) {
-            $times[] = [
-                'id' => $row->id,
-                'time' => $decodedData['time'],
-                'activity_type' => $decodedData['activity_type'] ?? 'Unknown' // Default to 'Unknown' if not set
-            ];
+        // Convert the date to a format for comparison (YYYY-MM-DD)
+        $recordDate = $decodedString['date'];
 
-            // Convert HH:MM time into total minutes
-            list($hours, $minutes) = explode(':', $decodedData['time']);
-            $totalMinutes = ($hours * 60) + $minutes;
+        // Check if the record's date is within the specified range
+        if (($startDate && strtotime($recordDate) < strtotime($startDate)) || ($endDate && strtotime($recordDate) > strtotime($endDate))) {
+            continue;  // Skip the record if it's outside the date range
+        }
 
-            // **Only Add Time if activity_type is "Billable"**
-            if (isset($decodedData['activity_type'])) {
-                if ($decodedData['activity_type'] === 'Billable') {
-                    $totalBillableMinutes += $totalMinutes;
-                } else if ($decodedData['activity_type'] === 'Non Billable') {
-                    $totalNonBillableMinutes += $totalMinutes;
-                }
-				else{
-                    $totalInhouseMinutes += $totalMinutes;
-                }
-            }
+        // Store data for response
+        $times[] = [
+            'id' => $row->id,
+            'time' => $decodedString['time'],
+            'activity_type' => $decodedString['activity_type'] ?? 'Unknown',
+            'date' => $decodedString['date']
+        ];
+
+        // Convert HH:MM time into total minutes
+        $timeParts = explode(':', $decodedString['time']);
+        if (count($timeParts) !== 2) {
+            Log::warning("Invalid time format for ID: {$row->id}, Time: {$decodedString['time']}");
+            continue;
+        }
+
+        $hours = intval($timeParts[0]);
+        $minutes = intval($timeParts[1]);
+        $totalMinutes = ($hours * 60) + $minutes;
+
+        // Categorize time based on activity_type
+        $activityType = $decodedString['activity_type'] ?? 'Unknown';
+        if ($activityType === 'Billable') {
+            $totalBillableMinutes += $totalMinutes;
+        } elseif ($activityType === 'Non Billable') {
+            $totalNonBillableMinutes += $totalMinutes;
         } else {
-            Log::warning('No time field found for ID ' . $row->id);
+            $totalInhouseMinutes += $totalMinutes;
         }
     }
 
     // Convert total minutes back to HH:MM format
     $formattedBillableTime = sprintf('%02d:%02d', floor($totalBillableMinutes / 60), $totalBillableMinutes % 60);
     $formattedNonBillableTime = sprintf('%02d:%02d', floor($totalNonBillableMinutes / 60), $totalNonBillableMinutes % 60);
-    $formattedIhouseTime = sprintf('%02d:%02d', floor($totalInhouseMinutes / 60), $totalInhouseMinutes % 60);
+    $formattedInhouseTime = sprintf('%02d:%02d', floor($totalInhouseMinutes / 60), $totalInhouseMinutes % 60);
 
-    // Return the times along with total working hours
+    // Return JSON response
     return response()->json([
-        //'times' => $times, // Show all times
-        'total_billable_hours' => $formattedBillableTime, // Sum only billable times
-        'total_nonbillable_hours' => $formattedNonBillableTime, // Sum only non-billable times
-        'total_inhouse_hours' => $formattedIhouseTime // Sum only non-billable times
+        'times' => $times,
+        'total_billable_hours' => $formattedBillableTime,
+        'total_nonbillable_hours' => $formattedNonBillableTime,
+        'total_inhouse_hours' => $formattedInhouseTime
     ]);
 }
 
