@@ -11,6 +11,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PerformaSheetController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\GraphController;
 
 
 // Route::get('/user', function (Request $request) {
@@ -82,6 +83,8 @@ Route::middleware('auth:api')->group(function () {
 	Route::put('/edit-task/{id}', [TaskController::class, 'EditTasks']);
 	Route::delete('/delete-task/{id}', [TaskController::class, 'DeleteTasks']);
 //Route::put('/projects/{id}', [ProjectController::class, 'update']);	
+
+	Route::post('/graph-total-workinghour', [GraphController::class, 'GraphTotalWorkingHour']);
 	
 
 	
