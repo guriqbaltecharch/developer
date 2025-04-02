@@ -86,6 +86,7 @@ Route::middleware('auth:api')->group(function () {
 
 	Route::post('/graph-total-workinghour', [GraphController::class, 'GraphTotalWorkingHour']);
 	Route::post('/get-workinghour-byproject', [GraphController::class, 'GetWorkingHourByProject']);
+	Route::get('/get-weekly-workinghour-byproject', [GraphController::class, 'GetWeeklyWorkingHourByProject']);
 	
 
 	

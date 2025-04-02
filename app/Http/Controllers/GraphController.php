@@ -212,6 +212,98 @@ public function GetWorkingHourByProject(Request $request)
     ]);
 }
 
+public function GetWeeklyWorkingHourByProject()
+{
+    // Start aur end date calculate karein
+    $startDate = date('Y-m-d', strtotime('-7 days'));
+    $endDate = date('Y-m-d');
+
+    // Database se data fetch karein
+    $dataQuery = DB::table('performa_sheets')
+        ->select('id', 'data', 'status')
+        ->where('status', 'approved')
+        ->get();
+
+    // Initialize array for processing
+    $result = [];
+
+    // Loop through fetched data
+    foreach ($dataQuery as $row) {
+        // Decode JSON data
+        $decodedData = json_decode($row->data, true);
+        if ($decodedData === null) {
+            Log::warning("Invalid JSON format in data field for ID: {$row->id}");
+            continue;
+        }
+
+        // Handle double-escaped JSON
+        if (is_string($decodedData)) {
+            $decodedData = json_decode($decodedData, true);
+        }
+
+        // Ensure required fields exist
+        if (!isset($decodedData['date'], $decodedData['time'], $decodedData['activity_type'])) {
+            Log::warning("Missing required fields in data for ID: {$row->id}");
+            continue;
+        }
+
+        $recordDate = $decodedData['date'];
+        $activityType = $decodedData['activity_type'];
+        $timeParts = explode(':', $decodedData['time']);
+
+        // Ensure time format is correct
+        if (count($timeParts) !== 2) {
+            Log::warning("Invalid time format for ID: {$row->id}, Time: {$decodedData['time']}");
+            continue;
+        }
+
+        $hours = intval($timeParts[0]);
+        $minutes = intval($timeParts[1]);
+        $totalMinutes = ($hours * 60) + $minutes;
+
+        // Check if the record is within the date range
+        if (strtotime($recordDate) < strtotime($startDate) || strtotime($recordDate) > strtotime($endDate)) {
+            continue;
+        }
+
+        // Initialize date-wise array
+        if (!isset($result[$recordDate])) {
+            $result[$recordDate] = [
+                'date' => $recordDate,
+                'total_hours' => 0,
+                'total_billable' => 0,
+                'total_non_billable' => 0,
+                'total_inhouse' => 0,
+            ];
+        }
+
+        // Add total time to respective categories
+        $result[$recordDate]['total_hours'] += $totalMinutes;
+
+        if ($activityType === 'Billable') {
+            $result[$recordDate]['total_billable'] += $totalMinutes;
+        } elseif ($activityType === 'Non Billable') {
+            $result[$recordDate]['total_non_billable'] += $totalMinutes;
+        } else {
+            $result[$recordDate]['total_inhouse'] += $totalMinutes;
+        }
+    }
+
+    // Convert minutes to HH:MM format
+    foreach ($result as &$dayData) {
+        $dayData['total_hours'] = sprintf('%02d:%02d', floor($dayData['total_hours'] / 60), $dayData['total_hours'] % 60);
+        $dayData['total_billable'] = sprintf('%02d:%02d', floor($dayData['total_billable'] / 60), $dayData['total_billable'] % 60);
+        $dayData['total_non_billable'] = sprintf('%02d:%02d', floor($dayData['total_non_billable'] / 60), $dayData['total_non_billable'] % 60);
+        $dayData['total_inhouse'] = sprintf('%02d:%02d', floor($dayData['total_inhouse'] / 60), $dayData['total_inhouse'] % 60);
+    }
+
+    return response()->json(array_values($result));
+}
+
+
+
+
+
 
 
 
