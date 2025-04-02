@@ -12,12 +12,12 @@ use App\Models\PerformaSheet;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;  
+use Illuminate\Support\Facades\Auth;
 
 
 class GraphController extends Controller
 {
   
-
 public function GraphTotalWorkingHour(Request $request)
 {
     // Request se start aur end date lena (Format: YYYY-MM-DD)
@@ -300,13 +300,77 @@ public function GetWeeklyWorkingHourByProject()
     return response()->json(array_values($result));
 }
 
+public function GetTotalWorkingHourByEmploye()
+{
+    $userId = Auth::id(); // Get current logged-in user ID
 
+    // Fetch approved records for the user
+    $dataQuery = DB::table('performa_sheets')
+        ->select('id', 'data', 'status')
+        ->where('status', 'approved')
+        ->where('user_id', $userId) // Fetch only logged-in user's data
+        ->get();
 
+    // Initialize totals
+    $totalHours = 0;
+    $totalBillable = 0;
+    $totalNonBillable = 0;
+    $totalInhouse = 0;
 
+    // Loop through fetched data
+    foreach ($dataQuery as $row) {
+        // Decode JSON data
+        $decodedData = json_decode($row->data, true);
+        if ($decodedData === null) {
+            Log::warning("Invalid JSON format in data field for ID: {$row->id}");
+            continue;
+        }
 
+        // Handle double-escaped JSON
+        if (is_string($decodedData)) {
+            $decodedData = json_decode($decodedData, true);
+        }
 
+        // Ensure required fields exist
+        if (!isset($decodedData['time'], $decodedData['activity_type'])) {
+            Log::warning("Missing required fields in data for ID: {$row->id}");
+            continue;
+        }
 
+        $activityType = $decodedData['activity_type'];
+        $timeParts = explode(':', $decodedData['time']);
 
+        // Ensure time format is correct
+        if (count($timeParts) !== 2) {
+            Log::warning("Invalid time format for ID: {$row->id}, Time: {$decodedData['time']}");
+            continue;
+        }
+
+        $hours = intval($timeParts[0]);
+        $minutes = intval($timeParts[1]);
+        $totalMinutes = ($hours * 60) + $minutes;
+
+        // Add total time to respective categories
+        $totalHours += $totalMinutes;
+
+        if ($activityType === 'Billable') {
+            $totalBillable += $totalMinutes;
+        } elseif ($activityType === 'Non Billable') {
+            $totalNonBillable += $totalMinutes;
+        } else {
+            $totalInhouse += $totalMinutes;
+        }
+    }
+
+    // Convert minutes to HH:MM format
+    return response()->json([
+        'user_id' => $userId,
+        'total_hours' => sprintf('%02d:%02d', floor($totalHours / 60), $totalHours % 60),
+        'total_billable' => sprintf('%02d:%02d', floor($totalBillable / 60), $totalBillable % 60),
+        'total_non_billable' => sprintf('%02d:%02d', floor($totalNonBillable / 60), $totalNonBillable % 60),
+        'total_inhouse' => sprintf('%02d:%02d', floor($totalInhouse / 60), $totalInhouse % 60),
+    ]);
+}
 
 
 }
