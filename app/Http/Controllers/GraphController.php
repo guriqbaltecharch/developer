@@ -374,8 +374,106 @@ public function GetTotalWorkingHourByEmploye()
 
 public function GetTotalWeeklyWorkingHourByEmploye()
 {
-	dd("tset");
+    // ✅ Get Current Logged-in User ID
+    $userId = Auth::id(); 
+
+    // ✅ Start aur end date calculate karein
+    $startDate = date('Y-m-d', strtotime('-6 days')); // 🔹 Ensure last 7 days include today
+    $endDate = date('Y-m-d');
+
+    // ✅ 7 days ka empty structure initialize karein
+    $dates = [];
+    for ($i = 0; $i < 7; $i++) {
+        $date = date('Y-m-d', strtotime("$startDate +$i days"));
+        $dates[$date] = [
+            'date' => $date,
+            'total_hours' => '00:00',
+            'total_billable' => '00:00',
+            'total_non_billable' => '00:00',
+            'total_inhouse' => '00:00',
+        ];
+    }
+
+    // ✅ Database se sirf logged-in user ka approved data fetch karein
+    $dataQuery = DB::table('performa_sheets')
+        ->select('id', 'data', 'status')
+        ->where('status', 'approved')
+        ->where('user_id', $userId)
+        ->get();
+
+    // ✅ Data process karein
+    foreach ($dataQuery as $row) {
+        // Decode JSON data
+        $decodedData = json_decode($row->data, true);
+        if ($decodedData === null) {
+            Log::warning("Invalid JSON format in data field for ID: {$row->id}");
+            continue;
+        }
+
+        // Handle double-escaped JSON
+        if (is_string($decodedData)) {
+            $decodedData = json_decode($decodedData, true);
+        }
+
+        // Ensure required fields exist
+        if (!isset($decodedData['date'], $decodedData['time'], $decodedData['activity_type'])) {
+            Log::warning("Missing required fields in data for ID: {$row->id}");
+            continue;
+        }
+
+        $recordDate = $decodedData['date'];
+        $activityType = $decodedData['activity_type'];
+        $timeParts = explode(':', $decodedData['time']);
+
+        // Ensure time format is correct
+        if (count($timeParts) !== 2) {
+            Log::warning("Invalid time format for ID: {$row->id}, Time: {$decodedData['time']}");
+            continue;
+        }
+
+        $hours = intval($timeParts[0]);
+        $minutes = intval($timeParts[1]);
+        $totalMinutes = ($hours * 60) + $minutes;
+
+        // ✅ Check if the record is within the date range
+        if (!isset($dates[$recordDate])) {
+            continue;
+        }
+
+        // ✅ Convert existing `00:00` to numeric format
+        if ($dates[$recordDate]['total_hours'] === '00:00') {
+            $dates[$recordDate]['total_hours'] = 0;
+            $dates[$recordDate]['total_billable'] = 0;
+            $dates[$recordDate]['total_non_billable'] = 0;
+            $dates[$recordDate]['total_inhouse'] = 0;
+        }
+
+        // ✅ Add total time to respective categories
+        $dates[$recordDate]['total_hours'] += $totalMinutes;
+        if ($activityType === 'Billable') {
+            $dates[$recordDate]['total_billable'] += $totalMinutes;
+        } elseif ($activityType === 'Non Billable') {
+            $dates[$recordDate]['total_non_billable'] += $totalMinutes;
+        } else {
+            $dates[$recordDate]['total_inhouse'] += $totalMinutes;
+        }
+    }
+
+    // ✅ Convert minutes to HH:MM format
+    foreach ($dates as &$dayData) {
+        if (is_numeric($dayData['total_hours'])) {
+            $dayData['total_hours'] = sprintf('%02d:%02d', floor($dayData['total_hours'] / 60), $dayData['total_hours'] % 60);
+            $dayData['total_billable'] = sprintf('%02d:%02d', floor($dayData['total_billable'] / 60), $dayData['total_billable'] % 60);
+            $dayData['total_non_billable'] = sprintf('%02d:%02d', floor($dayData['total_non_billable'] / 60), $dayData['total_non_billable'] % 60);
+            $dayData['total_inhouse'] = sprintf('%02d:%02d', floor($dayData['total_inhouse'] / 60), $dayData['total_inhouse'] % 60);
+        }
+    }
+
+    // ✅ Convert to JSON response
+    return response()->json(array_values($dates));
 }
+
+
 
 
 }
