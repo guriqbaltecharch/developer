@@ -372,5 +372,10 @@ public function GetTotalWorkingHourByEmploye()
     ]);
 }
 
+public function GetTotalWeeklyWorkingHourByEmploye()
+{
+	dd("tset");
+}
+
 
 }
