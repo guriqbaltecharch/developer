@@ -25,7 +25,7 @@ public function GraphTotalWorkingHour(Request $request)
     $endDate = $request->input('end_date');
 
     // Query ko filter karna based on date range
-    $dataQuery = DB::table('performa_sheets')->select('id', 'data');
+    $dataQuery = DB::table('performa_sheets')->select('id', 'data', 'status')->where('status', 'approved'); 
     $data = $dataQuery->get();
 
     // Initialize arrays and total time counters
@@ -67,7 +67,8 @@ public function GraphTotalWorkingHour(Request $request)
             'id' => $row->id,
             'time' => $decodedString['time'],
             'activity_type' => $decodedString['activity_type'] ?? 'Unknown',
-            'date' => $decodedString['date']
+            'date' => $decodedString['date'],
+			'status' => $row->status,
         ];
 
         // Convert HH:MM time into total minutes
@@ -83,6 +84,8 @@ public function GraphTotalWorkingHour(Request $request)
 
         // Categorize time based on activity_type
         $activityType = $decodedString['activity_type'] ?? 'Unknown';
+		$statusType = $row->status;
+		//$statusType = $decodedString['status'] ?? 'Unknown';
         if ($activityType === 'Billable') {
             $totalBillableMinutes += $totalMinutes;
         } elseif ($activityType === 'Non Billable') {
@@ -99,12 +102,117 @@ public function GraphTotalWorkingHour(Request $request)
 
     // Return JSON response
     return response()->json([
-       // 'times' => $times,
+       'times' => $times,
         'total_billable_hours' => $formattedBillableTime,
         'total_nonbillable_hours' => $formattedNonBillableTime,
         'total_inhouse_hours' => $formattedInhouseTime
     ]);
 }
+
+public function GetWorkingHourByProject(Request $request)
+{
+    // Request se project_id lena
+    $projectId = $request->input('project_id');
+
+    // Agar project_id nahi diya gaya, toh error return karein
+    if (!$projectId) {
+        return response()->json(['error' => 'Project ID is required'], 400);
+    }
+
+    // Projects table se project details fetch karna
+    $project = DB::table('projects')->where('id', $projectId)->first();
+
+    // Agar project exist nahi karta toh error return karein
+    if (!$project) {
+        return response()->json(['error' => 'Project not found'], 404);
+    }
+
+    // Performa sheets table se sirf "approved" status wale records fetch karein
+    $dataQuery = DB::table('performa_sheets')
+        ->select('id', 'data', 'status')
+        ->where('status', 'approved')
+        ->get();
+
+    // Initialize total time counters
+    $totalBillableMinutes = 0;
+    $totalNonBillableMinutes = 0;
+    $totalInhouseMinutes = 0;
+
+    // Loop through each row and process the data
+    foreach ($dataQuery as $row) {
+        // Decode JSON data
+        $decodedString = json_decode($row->data, true);
+        if ($decodedString === null) {
+            Log::warning("Invalid JSON format in data field for ID: {$row->id}");
+            continue;
+        }
+
+        // Handle nested JSON issue (if needed)
+        if (is_string($decodedString)) {
+            $decodedString = json_decode($decodedString, true);
+        }
+
+        // Check if required fields exist
+        if (!isset($decodedString['time']) || !isset($decodedString['activity_type']) || !isset($decodedString['project_id'])) {
+            Log::warning("Missing required fields in data field for ID: {$row->id}");
+            continue;
+        }
+
+        // Check if project_id matches the given one
+        if ($decodedString['project_id'] != $projectId) {
+            continue; // Skip if project_id does not match
+        }
+
+        // Convert HH:MM time into total minutes
+        $timeParts = explode(':', $decodedString['time']);
+        if (count($timeParts) !== 2) {
+            Log::warning("Invalid time format for ID: {$row->id}, Time: {$decodedString['time']}");
+            continue;
+        }
+
+        $hours = intval($timeParts[0]);
+        $minutes = intval($timeParts[1]);
+        $totalMinutes = ($hours * 60) + $minutes;
+
+        // Categorize time based on activity_type
+        $activityType = strtolower($decodedString['activity_type']);
+        if ($activityType === 'billable') {
+            $totalBillableMinutes += $totalMinutes;
+        } elseif ($activityType === 'non billable') {
+            $totalNonBillableMinutes += $totalMinutes;
+        } else {
+            $totalInhouseMinutes += $totalMinutes;
+        }
+    }
+
+    // Convert total minutes back to HH:MM format
+    $formattedBillableTime = sprintf('%02d:%02d', floor($totalBillableMinutes / 60), $totalBillableMinutes % 60);
+    $formattedNonBillableTime = sprintf('%02d:%02d', floor($totalNonBillableMinutes / 60), $totalNonBillableMinutes % 60);
+    $formattedInhouseTime = sprintf('%02d:%02d', floor($totalInhouseMinutes / 60), $totalInhouseMinutes % 60);
+
+    // Total Working Hours (Sum of all types)
+    $totalWorkingMinutes = $totalBillableMinutes + $totalNonBillableMinutes + $totalInhouseMinutes;
+    $formattedTotalWorkingTime = sprintf('%02d:%02d', floor($totalWorkingMinutes / 60), $totalWorkingMinutes % 60);
+
+    // Return JSON response
+    return response()->json([
+        'project_id' => $project->id,
+        'project_name' => $project->project_name,
+        'client_id' => $project->client_id,
+        'sales_team_id' => $project->sales_team_id,
+        'requirements' => $project->requirements,
+        'deadline' => $project->deadline,
+        'created_at' => $project->created_at,
+        'updated_at' => $project->updated_at,
+        'project_total_hours' => $project->total_hours,
+        'total_working_hours' => $formattedTotalWorkingTime,
+        'total_billable_hours' => $formattedBillableTime ?: '00:00',
+        'total_nonbillable_hours' => $formattedNonBillableTime ?: '00:00',
+        'total_inhouse_hours' => $formattedInhouseTime ?: '00:00',
+    ]);
+}
+
+
 
 
 
