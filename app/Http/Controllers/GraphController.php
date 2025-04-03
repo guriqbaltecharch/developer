@@ -473,7 +473,44 @@ public function GetTotalWeeklyWorkingHourByEmploye()
     return response()->json(array_values($dates));
 }
 
+public function GetLastSixMonthsProjectCount()
+{
+    // ✅ Current date (today's date)
+    $today = now();
+    $currentDay = $today->day; // Get the day (e.g., 04)
 
+    $data = [];
+
+    // ✅ Loop for last 6 months
+    for ($i = 0; $i < 6; $i++) {
+        // Calculate Start and End Date for each month
+        $startDate = $today->copy()->subMonths($i + 1)->setDay($currentDay);
+        $endDate = $today->copy()->subMonths($i)->setDay($currentDay);
+
+        // Handle edge cases where setDay might exceed month's total days
+        if ($startDate->day != $currentDay) {
+            $startDate = $startDate->copy()->lastOfMonth();
+        }
+        if ($endDate->day != $currentDay) {
+            $endDate = $endDate->copy()->lastOfMonth();
+        }
+
+        // ✅ Count projects created within this range
+        $totalProjects = DB::table('projects')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        // ✅ Store result in array
+        $data[] = [
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'total_projects' => $totalProjects,
+        ];
+    }
+
+    // ✅ Return JSON response
+    return response()->json($data);
+}
 
 
 }
