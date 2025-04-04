@@ -12,6 +12,7 @@ use App\Http\Controllers\PerformaSheetController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\GraphController;
+use App\Http\Controllers\TagActivityController;
 
 
 // Route::get('/user', function (Request $request) {
@@ -90,6 +91,14 @@ Route::middleware('auth:api')->group(function () {
 	Route::get('/gettotal-workinghour-byemploye', [GraphController::class, 'GetTotalWorkingHourByEmploye']);
 	Route::get('/gettotal-weekly-workinghour-byemploye', [GraphController::class, 'GetTotalWeeklyWorkingHourByEmploye']);
 	Route::get('/get-lastsixmonths-projectcount', [GraphController::class, 'GetLastSixMonthsProjectCount']);
+
+
+	Route::post('/addtagsactivity', [TagActivityController::class, 'AddActivityTag']); // Add tag
+	Route::get('/getactivitytag', [TagActivityController::class, 'GetActivityTag']);
+	Route::put('/updatetagsactivity/{id}', [TagActivityController::class, 'UpdateActivityTag']);
+	
+//Route::get('/tagsactivity', [TagsActivityController::class, 'index']); // Get all tags
+
 	
 
 	
