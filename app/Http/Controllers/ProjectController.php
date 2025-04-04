@@ -172,12 +172,13 @@ public function getUserProjects()
             return [
                 'id' => $project->id,
                 'project_name' => $project->project_name,
-                'budget' => $project->budget,
-                'requirements' => $project->requirements,
+                //'budget' => $project->budget,
+                //'requirements' => $project->requirements,
                 'deadline' => $project->deadline,
                 'created_at' => Carbon::parse($project->created_at)->toDateString(), // ✅ Keep only date
                 'updated_at' => Carbon::parse($project->updated_at)->toDateString(), // ✅ Keep only date
                 'client' => $project->client ?? ['message' => 'No Client Found'], // ✅ Return full client data
+                'tags_activitys' => $project->tags_activitys ? json_decode($project->tags_activitys, true) : [], // ✅ Decode JSON to array
                 'pivot' => [
                     'user_id' => $project->pivot->user_id,
                     'project_id' => $project->pivot->project_id,
@@ -190,6 +191,7 @@ public function getUserProjects()
 
     return ApiResponse::success('User projects fetched successfully', $projects);
 }
+
 
 
 	
