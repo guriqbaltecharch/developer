@@ -21,6 +21,11 @@ class TagActivityController extends Controller
 
         return response()->json(['message' => 'Tag added successfully', 'tag' => $tag]);
     }
+	public function AddActivityTags(Request $request) 
+	{
+		return response()->json(['message' => 'Test']);
+        
+    }
 	public function GetActivityTag() 
 	{
 		
@@ -29,8 +34,36 @@ $tags = DB::table('tagsactivity')->get();
 
 return response()->json($tags);
     }
-	public function UpdateActivityTag(Request $request, $id)
+
+
+public function updateActivityTag(Request $request, $id)
 {
-    return response()->json(['message' => 'Received ID:', 'id' => $id]);
+   
+    // Validate request
+    $request->validate([
+        'name' => 'required|string|max:255'
+    ]);
+
+    // Check if the tag exists
+    $tag = DB::table('tagsactivity')->where('id', $id)->first();
+
+    if (!$tag) {
+        return response()->json(['message' => 'Tag not found'], 404);
+    }
+
+    // Update the tag name
+    DB::table('tagsactivity')->where('id', $id)->update([
+        'name' => $request->name,
+        'updated_at' => now() // If timestamps are enabled
+    ]);
+
+    // Fetch updated tag
+    $updatedTag = DB::table('tagsactivity')->where('id', $id)->first();
+
+    return response()->json([
+        'message' => 'Tag updated successfully',
+        'tag' => $updatedTag
+    ]);
 }
+
 }

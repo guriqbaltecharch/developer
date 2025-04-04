@@ -95,7 +95,8 @@ Route::middleware('auth:api')->group(function () {
 
 	Route::post('/addtagsactivity', [TagActivityController::class, 'AddActivityTag']); // Add tag
 	Route::get('/getactivity-tag', [TagActivityController::class, 'GetActivityTag']);
-	Route::put('/updatetagsactivity/{id}', [TagActivityController::class, 'UpdateActivityTag']);
+	Route::put('/updatetagsactivity/{id}', [TagActivityController::class, 'updateActivityTag']);
+	Route::post('/addtagsactivitys', [TagActivityController::class, 'AddActivityTags']); // Add tag
 	
 //Route::get('/tagsactivity', [TagsActivityController::class, 'index']); // Get all tags
 
