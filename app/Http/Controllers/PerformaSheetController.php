@@ -30,9 +30,8 @@ class PerformaSheetController extends Controller
             'data.*.work_type' => 'required|string|max:255',
             'data.*.activity_type' => 'required|string|max:255',
             'data.*.narration' => 'nullable|string',
-            'data.*.project_type' => 'required|string|max:255', // ✅ New field
-            'data.*.project_type_status' => 'required|string|max:255', // ✅ New field
-			
+            'data.*.project_type' => 'required|string|max:255',
+            'data.*.project_type_status' => 'required|string|max:255',
         ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
         return response()->json([
@@ -48,22 +47,28 @@ class PerformaSheetController extends Controller
     $limitExceededProjects = [];
     $projectRecords = [];
 
-    // ✅ Store project data grouped by `project_id`
+    // 🧠 Convert time (HH:mm) to float hours and group by project_id
     foreach ($validatedData['data'] as $record) {
         list($hours, $minutes) = explode(':', $record['time']);
         $timeInHours = (int)$hours + ((int)$minutes / 60);
 
         if (!isset($projectHours[$record['project_id']])) {
             $projectHours[$record['project_id']] = 0;
-            $projectRecords[$record['project_id']] = $record; // ✅ Store correct data for each `project_id`
+            $projectRecords[$record['project_id']] = $record;
         }
         $projectHours[$record['project_id']] += $timeInHours;
     }
 
-    // ✅ Process each project separately with correct data
+    // 🧠 Helper function to convert float to HH:mm
+    $floatToTime = function ($floatHours) {
+        $hours = floor($floatHours);
+        $minutes = round(($floatHours - $hours) * 60);
+        return sprintf("%02d:%02d", $hours, $minutes);
+    };
+
     foreach ($projectHours as $projectId => $newlyInsertedHours) {
         $project = Project::find($projectId);
-        $record = $projectRecords[$projectId]; // ✅ Get the correct record for this project_id
+        $record = $projectRecords[$projectId];
 
         if ($project) {
             $previousTotalHours = $project->total_working_hours;
@@ -77,13 +82,12 @@ class PerformaSheetController extends Controller
 
             if ($originalActivityType == "Billable") {
                 $message = "I am Billable";
-            } else if ($originalActivityType == "Non Billable") {
+            } elseif ($originalActivityType == "Non Billable") {
                 $message = "I am Non Billable";
-            } else if ($originalActivityType == "Inhouse") {
+            } elseif ($originalActivityType == "Inhouse") {
                 $message = "I am Inhouse";
             }
 
-            // ✅ If "Inhouse" or "Non Billable", add simple row (No extra row)
             if ($originalActivityType == "Inhouse" || $originalActivityType == "Non Billable") {
                 $insertedRecords[] = PerformaSheet::create([
                     'user_id' => $user->id,
@@ -94,14 +98,12 @@ class PerformaSheetController extends Controller
                         'work_type' => $record['work_type'],
                         'narration' => $record['narration'],
                         'activity_type' => $originalActivityType,
-                        'project_type' => $record['project_type'], // ✅ New field
-                        'project_type_status' => $record['project_type_status'], // ✅ New field
+                        'project_type' => $record['project_type'],
+                        'project_type_status' => $record['project_type_status'],
                         'message' => "$message - Hours added without limit check"
                     ])
                 ]);
-            } 
-            // ✅ If "Billable", check limits and split if needed
-            else {
+            } else {
                 $remainingHours = max(0, $totalHoursLimit - $previousTotalHours);
                 $extraHours = max(0, $newlyInsertedHours - $remainingHours);
 
@@ -112,12 +114,12 @@ class PerformaSheetController extends Controller
                             'data' => json_encode([
                                 'project_id' => $projectId,
                                 'date' => $record['date'],
-                                'time' => sprintf("%02d:00", $remainingHours),
+                                'time' => $floatToTime($remainingHours),
                                 'work_type' => $record['work_type'],
                                 'narration' => $record['narration'],
                                 'activity_type' => "Billable",
-                                'project_type' => $record['project_type'], // ✅ New field
-                                'project_type_status' => $record['project_type_status'], // ✅ New field
+                                'project_type' => $record['project_type'],
+                                'project_type_status' => $record['project_type_status'],
                                 'message' => "Billable - Only remaining hours added before limit exceeded"
                             ])
                         ]);
@@ -129,12 +131,12 @@ class PerformaSheetController extends Controller
                             'data' => json_encode([
                                 'project_id' => $projectId,
                                 'date' => $record['date'],
-                                'time' => sprintf("%02d:00", $extraHours),
+                                'time' => $floatToTime($extraHours),
                                 'work_type' => $record['work_type'],
                                 'narration' => $record['narration'],
                                 'activity_type' => "Non Billable",
-                                'project_type' => $record['project_type'], // ✅ New field
-                                'project_type_status' => $record['project_type_status'], // ✅ New field
+                                'project_type' => $record['project_type'],
+                                'project_type_status' => $record['project_type_status'],
                                 'message' => "Extra hours marked as Non Billable"
                             ])
                         ]);
@@ -158,8 +160,8 @@ class PerformaSheetController extends Controller
                             'work_type' => $record['work_type'],
                             'narration' => $record['narration'],
                             'activity_type' => "Billable",
-                            'project_type' => $record['project_type'], // ✅ New field
-                            'project_type_status' => $record['project_type_status'], // ✅ New field
+                            'project_type' => $record['project_type'],
+                            'project_type_status' => $record['project_type_status'],
                             'message' => "Billable - Hours added successfully"
                         ])
                     ]);
@@ -182,6 +184,7 @@ class PerformaSheetController extends Controller
         'exceeded_projects' => $limitExceededProjects
     ]);
 }
+
 
 
 	public function getUserPerformaSheets()
