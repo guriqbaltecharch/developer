@@ -19,20 +19,28 @@ class ProjectController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'sales_team_id' => 'required',
-            'client_id' => 'required|exists:clients,id',
-            'project_name' => 'required|string|max:255',
-            'requirements' => 'nullable|string',
-            'budget' => 'nullable|numeric',
-            'deadline' => 'nullable|date',
-            'total_hours' => 'nullable|string',
-        ]);
+{
+    $validatedData = $request->validate([
+        'sales_team_id' => 'required',
+        'client_id' => 'required|exists:clients,id',
+        'project_name' => 'required|string|max:255',
+        'requirements' => 'nullable|string',
+        'budget' => 'nullable|numeric',
+        'deadline' => 'nullable|date',
+        'total_hours' => 'nullable|string',
+        'tags_activitys' => 'nullable|array' // ✅ Ensure it's an array
+    ]);
 
-        $project = Project::create($validatedData);
-        return ApiResponse::success('Project created successfully', $project, 201);
+    // Convert tags_activitys array to JSON before saving
+    if ($request->has('tags_activitys')) {
+        $validatedData['tags_activitys'] = json_encode($request->tags_activitys);
     }
+
+    $project = Project::create($validatedData);
+    
+    return ApiResponse::success('Project created successfully', $project, 201);
+}
+
 
     public function assignProjectToManager(Request $request)
 {
