@@ -103,7 +103,7 @@ class PerformaSheetController extends Controller
                         'message' => "$message - Hours added without limit check"
                     ])
                 ]);
-            } else {
+            } else if ($originalActivityType == "Billable") {
                 $remainingHours = max(0, $totalHoursLimit - $previousTotalHours);
                 $extraHours = max(0, $newlyInsertedHours - $remainingHours);
 
@@ -167,6 +167,22 @@ class PerformaSheetController extends Controller
                     ]);
                 }
             }
+			else{
+				   $insertedRecords[] = PerformaSheet::create([
+                    'user_id' => $user->id,
+                    'data' => json_encode([
+                        'project_id' => $projectId,
+                        'date' => $record['date'],
+                        'time' => $record['time'],
+                        'work_type' => $record['work_type'],
+                        'narration' => $record['narration'],
+                        'activity_type' => $originalActivityType,
+                        'project_type' => $record['project_type'],
+                        'project_type_status' => $record['project_type_status'],
+                        'message' => "$message - Hours added without limit check"
+                    ])
+                ]);
+			}
 
             $totalHoursPerProject[$projectId] = [
                 "project_id" => $projectId,
