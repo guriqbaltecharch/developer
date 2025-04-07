@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\PerformaSheet;
+use App\Models\Project;
 use App\Models\Role;
 use App\Http\Resources\UserResource;
 use App\Http\Helpers\ApiResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class UserController extends Controller
 {
@@ -134,6 +138,94 @@ class UserController extends Controller
 
         return ApiResponse::success('User updated successfully', new UserResource($user->fresh()));
     }
+	
+
+
+public function GetFullProileEmployee($id)
+{
+    $user = User::with(['team', 'role'])->find($id);
+
+    if (!$user) {
+        return ApiResponse::error('User not found', [], 404);
+    }
+
+    // Get project assignment info
+    $projectUserData = DB::table('project_user')
+        ->leftJoin('users as pm', 'project_user.project_manager_id', '=', 'pm.id')
+        ->leftJoin('projects', 'project_user.project_id', '=', 'projects.id')
+        ->select(
+            'project_user.user_id',
+            'project_user.project_id',
+            'projects.project_name',
+            'project_user.project_manager_id',
+            'pm.name as project_manager_name',
+            'project_user.created_at',
+            'project_user.updated_at'
+        )
+        ->where('project_user.user_id', $id)
+        ->get();
+
+    // Fetch performa_sheets for user
+    $performaSheets = DB::table('performa_sheets')
+        ->where('user_id', $id)
+        ->pluck('data'); // JSON strings
+
+    // Decode all performa rows
+    $entries = [];
+    foreach ($performaSheets as $json) {
+        $decoded = json_decode($json, true);
+        if (isset($decoded['project_id'], $decoded['activity_type'], $decoded['time'])) {
+            $entries[] = $decoded;
+        }
+    }
+
+    // Process activity_type time sum grouped by project_id
+    $activityData = [];
+    foreach ($entries as $entry) {
+        $pid = $entry['project_id'];
+        $type = $entry['activity_type'];
+        [$h, $m] = explode(':', $entry['time']);
+        $minutes = ((int)$h * 60) + (int)$m;
+
+        if (!isset($activityData[$pid])) {
+            $activityData[$pid] = [];
+        }
+        if (!isset($activityData[$pid][$type])) {
+            $activityData[$pid][$type] = 0;
+        }
+        $activityData[$pid][$type] += $minutes;
+    }
+
+    // Add to projectUserData response
+    $projectUserData->transform(function ($project) use ($activityData) {
+        $pid = $project->project_id;
+        $activities = [];
+
+        if (isset($activityData[$pid])) {
+            foreach ($activityData[$pid] as $type => $minutes) {
+                $h = floor($minutes / 60);
+                $m = $minutes % 60;
+                $activities[] = [
+                    'activity_type' => $type,
+                    'total_hours' => sprintf('%02d:%02d', $h, $m),
+                ];
+            }
+        }
+
+        $project->activities = $activities;
+        return $project;
+    });
+
+    return ApiResponse::success('User details fetched successfully', [
+        'user' => new UserResource($user),
+        'project_user' => $projectUserData
+    ]);
+}
+
+
+
+
+
 
 
 }

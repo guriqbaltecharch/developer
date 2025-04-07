@@ -29,6 +29,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/projectManager', [UserController::class, 'projectManger']);
     Route::get('/users/{id}', [UserController::class, 'show']);
+	Route::get('/getfull_proileemployee/{id}', [UserController::class, 'GetFullProileEmployee']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
     Route::apiResource('/teams', TeamController::class);

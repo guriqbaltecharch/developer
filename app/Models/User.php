@@ -92,11 +92,12 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Project::class, 'project_manager_id');
     }
 	
-	public function assignedProjects()
-	{
-		return $this->belongsToMany(Project::class, 'project_user')
-					->withPivot('created_at') // ✅ Include assigned_at from pivot table
-					->withTimestamps();
-	}
+public function assignedProjects()
+{
+    return $this->belongsToMany(Project::class, 'project_user')
+                ->withPivot('project_manager_id', 'created_at', 'updated_at')
+                ->withTimestamps();
+}
+
 
 }
