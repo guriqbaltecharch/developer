@@ -195,10 +195,8 @@ public function getUserProjects()
     return ApiResponse::success('User projects fetched successfully', $projects);
 }
 
-
-
 	
-	public function getAssignedProjects()
+public function getAssignedProjects()
 {
     $user = auth()->user();
 

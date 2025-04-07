@@ -392,10 +392,10 @@ class PerformaSheetController extends Controller
 
 	public function editPerformaSheets(Request $request)
 {
-    $user = auth()->user();
+	 $user = auth()->user();
 
     try {
-        // ✅ Validate the request, including the new fields
+        // ✅ Validate the request including tags_activitys
         $validatedData = $request->validate([
             'id' => 'required|exists:performa_sheets,id',
             'data' => 'required|array',
@@ -410,11 +410,13 @@ class PerformaSheetController extends Controller
             'data.work_type' => 'required|string|max:255',
             'data.activity_type' => 'required|string|max:255',
             'data.narration' => 'nullable|string',
-            'data.project_type' => 'required|string|max:255', // ✅ New field
-            'data.project_type_status' => 'required|string|max:255' // ✅ New field
+            'data.project_type' => 'required|string|max:255',
+            'data.project_type_status' => 'required|string|max:255',
+            'data.tags_activitys' => 'nullable|array', // ✅ Add validation for tags_activitys
+            'data.tags_activitys.*' => 'integer|exists:tagsactivity,id',
         ]);
 
-        // ✅ Find Performa Sheet for the given ID and user
+        // ✅ Find Performa Sheet
         $performaSheet = PerformaSheet::where('id', $validatedData['id'])
                                       ->where('user_id', $user->id)
                                       ->first();
@@ -426,33 +428,33 @@ class PerformaSheetController extends Controller
             ], 404);
         }
 
-        // ✅ Get Old Data & Status
+        // ✅ Get Old and New Data
         $oldData = json_decode($performaSheet->data, true);
-        $oldStatus = $performaSheet->status; // ✅ Fetch previous status
+        $oldStatus = $performaSheet->status;
         $newData = $validatedData['data'];
 
-        // ✅ Check if Any Data is Changed
+        // ✅ Check if any data is changed
         $isChanged = $oldData != $newData;
 
-        // ✅ If Data is Changed, Update Status Accordingly
         if ($isChanged) {
             if (in_array(strtolower($oldStatus), ['approved', 'rejected'])) {
-                $performaSheet->status = 'Pending'; // ✅ Change only if previous status was Approved/Rejected
+                $performaSheet->status = 'Pending';
             }
+
             $performaSheet->data = json_encode($newData);
             $performaSheet->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Performa Sheet updated successfully',
-                'status' => $performaSheet->status, // ✅ Return updated status
+                'status' => $performaSheet->status,
                 'data' => $performaSheet
             ]);
         } else {
             return response()->json([
                 'success' => true,
                 'message' => 'No changes detected.',
-                'status' => $oldStatus, // ✅ Return previous status
+                'status' => $oldStatus,
                 'data' => $performaSheet
             ]);
         }
