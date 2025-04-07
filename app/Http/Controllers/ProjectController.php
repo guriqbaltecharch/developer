@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Client;
 use App\Models\User;
+use App\Models\TagsActivity;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
 use Illuminate\Support\Facades\DB;
@@ -162,28 +163,30 @@ class ProjectController extends Controller
 
 public function getUserProjects()
 {
-    $user = auth()->user();
+	$user = auth()->user();
 
-    // ✅ Fetch projects with full client data & pivot (assigned_at)
     $projects = $user->assignedProjects()
-        ->with('client') // ✅ Fetch full client data
+        ->with('client')
         ->get()
         ->map(function ($project) {
+            $tagIds = $project->tags_activitys ? json_decode($project->tags_activitys, true) : [];
+
+            // ✅ Fetch tag details from tagsactivity table
+            $tags = TagsActivity::whereIn('id', $tagIds)->get(['id', 'name']);
+
             return [
                 'id' => $project->id,
                 'project_name' => $project->project_name,
-                //'budget' => $project->budget,
-                //'requirements' => $project->requirements,
                 'deadline' => $project->deadline,
-                'created_at' => Carbon::parse($project->created_at)->toDateString(), // ✅ Keep only date
-                'updated_at' => Carbon::parse($project->updated_at)->toDateString(), // ✅ Keep only date
-                'client' => $project->client ?? ['message' => 'No Client Found'], // ✅ Return full client data
-                'tags_activitys' => $project->tags_activitys ? json_decode($project->tags_activitys, true) : [], // ✅ Decode JSON to array
+                'created_at' => Carbon::parse($project->created_at)->toDateString(),
+                'updated_at' => Carbon::parse($project->updated_at)->toDateString(),
+                'client' => $project->client ?? ['message' => 'No Client Found'],
+                'tags_activitys' => $tags, // ✅ Returning full tag objects with id & name
                 'pivot' => [
                     'user_id' => $project->pivot->user_id,
                     'project_id' => $project->pivot->project_id,
                     'assigned_at' => $project->pivot->created_at
-                        ? Carbon::parse($project->pivot->created_at)->toDateString()  // ✅ Keep only date
+                        ? Carbon::parse($project->pivot->created_at)->toDateString()
                         : 'Not Assigned'
                 ]
             ];
