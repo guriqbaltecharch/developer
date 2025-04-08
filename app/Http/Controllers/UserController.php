@@ -140,7 +140,6 @@ class UserController extends Controller
     }
 	
 
-
 public function GetFullProileEmployee($id)
 {
     $user = User::with(['team', 'role'])->find($id);
@@ -149,7 +148,7 @@ public function GetFullProileEmployee($id)
         return ApiResponse::error('User not found', [], 404);
     }
 
-    // Get project assignment info
+    // Fetch all project-user mappings
     $projectUserData = DB::table('project_user')
         ->leftJoin('users as pm', 'project_user.project_manager_id', '=', 'pm.id')
         ->leftJoin('projects', 'project_user.project_id', '=', 'projects.id')
@@ -165,39 +164,68 @@ public function GetFullProileEmployee($id)
         ->where('project_user.user_id', $id)
         ->get();
 
-    // Fetch performa_sheets for user
+    // Get performa data (only approved)
     $performaSheets = DB::table('performa_sheets')
         ->where('user_id', $id)
-        ->pluck('data'); // JSON strings
+        ->where('status', 'approved')
+        ->get();
 
-    // Decode all performa rows
-    $entries = [];
-    foreach ($performaSheets as $json) {
-        $decoded = json_decode($json, true);
-        if (isset($decoded['project_id'], $decoded['activity_type'], $decoded['time'])) {
-            $entries[] = $decoded;
-        }
-    }
-
-    // Process activity_type time sum grouped by project_id
     $activityData = [];
-    foreach ($entries as $entry) {
-        $pid = $entry['project_id'];
-        $type = $entry['activity_type'];
-        [$h, $m] = explode(':', $entry['time']);
-        $minutes = ((int)$h * 60) + (int)$m;
 
-        if (!isset($activityData[$pid])) {
-            $activityData[$pid] = [];
+    foreach ($performaSheets as $row) {
+        $decoded = json_decode($row->data, true);
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
         }
-        if (!isset($activityData[$pid][$type])) {
-            $activityData[$pid][$type] = 0;
+
+        // Log decoded data to check structure
+        \Log::info('Decoded Sheet Data', ['sheet_id' => $row->id, 'decoded' => $decoded]);
+
+        $entries = isset($decoded[0]) ? $decoded : [$decoded];
+
+        foreach ($entries as $entry) {
+            if (!isset($entry['activity_type'], $entry['time'])) continue;
+
+            $activityType = $entry['activity_type'];
+            $projectId = $entry['project_id'] ?? null; // treat null as Inhouse
+            $time = $entry['time'];
+
+            $timeParts = explode(':', $time);
+            if (count($timeParts) !== 2) continue;
+
+            $minutes = ((int)$timeParts[0] * 60) + (int)$timeParts[1];
+
+            // Grouping by project_id and activity_type
+            if (!isset($activityData[$projectId])) {
+                $activityData[$projectId] = [];
+            }
+
+            if (!isset($activityData[$projectId][$activityType])) {
+                $activityData[$projectId][$activityType] = 0;
+            }
+
+            $activityData[$projectId][$activityType] += $minutes;
         }
-        $activityData[$pid][$type] += $minutes;
     }
 
-    // Add to projectUserData response
-    $projectUserData->transform(function ($project) use ($activityData) {
+    // Create a new "inhouse" project block if needed
+    $projectUserDataArray = $projectUserData->toArray();
+
+    // Handle Inhouse (project_id = null) manually
+    if (isset($activityData[null])) {
+        $projectUserDataArray[] = (object) [
+            'project_id' => null,
+            'project_name' => 'Inhouse',
+            'project_manager_id' => null,
+            'project_manager_name' => null,
+            'user_id' => $id,
+            'created_at' => null,
+            'updated_at' => null,
+        ];
+    }
+
+    // Attach activity totals to each project
+    $finalProjects = collect($projectUserDataArray)->transform(function ($project) use ($activityData) {
         $pid = $project->project_id;
         $activities = [];
 
@@ -205,6 +233,7 @@ public function GetFullProileEmployee($id)
             foreach ($activityData[$pid] as $type => $minutes) {
                 $h = floor($minutes / 60);
                 $m = $minutes % 60;
+
                 $activities[] = [
                     'activity_type' => $type,
                     'total_hours' => sprintf('%02d:%02d', $h, $m),
@@ -218,7 +247,7 @@ public function GetFullProileEmployee($id)
 
     return ApiResponse::success('User details fetched successfully', [
         'user' => new UserResource($user),
-        'project_user' => $projectUserData
+        'project_user' => $finalProjects,
     ]);
 }
 

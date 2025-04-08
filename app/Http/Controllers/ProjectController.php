@@ -411,5 +411,47 @@ public function removeProjectManagers(Request $request)
             ], 500);
         }
     }
+public function GetFullProjectManangerData()
+{$projects = DB::table('projects')
+        ->leftJoin('project_manager_project', 'projects.id', '=', 'project_manager_project.project_id')
+        ->leftJoin('users', 'project_manager_project.project_manager_id', '=', 'users.id')
+        ->leftJoin('clients', 'projects.client_id', '=', 'clients.id') // If client is related
+        ->leftJoin('teams as sales_team', 'projects.sales_team_id', '=', 'sales_team.id') // If sales team is related
+        ->select(
+            'projects.id as project_id',
+            'projects.project_name',
+            'projects.requirements',
+            'projects.budget',
+            'projects.deadline',
+            'clients.name as client_name',
+            'sales_team.name as sales_team_name',
+            'users.id as project_manager_id',
+            'users.name as project_manager_name'
+        )
+        ->get()
+        ->groupBy('project_id')
+        ->map(function ($items) {
+            $base = $items->first();
+            return [
+                'project_id' => $base->project_id,
+                'project_name' => $base->project_name,
+                'requirements' => $base->requirements,
+                'budget' => $base->budget,
+                'deadline' => $base->deadline,
+                'client' => $base->client_name,
+                'sales_team' => $base->sales_team_name,
+                'project_managers' => $items->map(function ($i) {
+                    return [
+                        'id' => $i->project_manager_id,
+                        'name' => $i->project_manager_name,
+                    ];
+                })->filter(fn ($pm) => $pm['id'] !== null)->unique('id')->values(),
+            ];
+        })
+        ->values(); // reset numeric keys
+
+    return ApiResponse::success('Projects fetched successfully', $projects);
+}
+
 
 }

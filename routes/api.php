@@ -58,6 +58,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/user-projects', [ProjectController::class, 'getUserProjects']);
     Route::get('/get-project-manager-employee', [ProjectController::class, 'getProjectManagerEmployee']);
 	Route::post('/remove-project-managers', [ProjectController::class, 'removeProjectManagers']);
+	Route::get('/getfull-projectmananger-data', [ProjectController::class, 'GetFullProjectManangerData']);
 
 	
 	// Performa API
