@@ -412,7 +412,8 @@ public function removeProjectManagers(Request $request)
         }
     }
 public function GetFullProjectManangerData()
-{$projects = DB::table('projects')
+{
+    $projects = DB::table('projects')
         ->leftJoin('project_manager_project', 'projects.id', '=', 'project_manager_project.project_id')
         ->leftJoin('users', 'project_manager_project.project_manager_id', '=', 'users.id')
         ->leftJoin('clients', 'projects.client_id', '=', 'clients.id') // If client is related
