@@ -215,6 +215,7 @@ public function getAssignedProjects()
 
 	public function update(Request $request, $id)
     {
+		
         $project = Project::find($id);
 		if (!$project) {
             return ApiResponse::error('Project not found', [], 404);
@@ -226,6 +227,8 @@ public function getAssignedProjects()
             'budget' => 'nullable|numeric',
             'deadline' => 'nullable|date'
         ]);
+		//return response()->json(['message' => 'Test111']);
+		
 		$project->update($validatedData);
 		return ApiResponse::success('Project updated successfully', new ProjectResource($project));
     }
