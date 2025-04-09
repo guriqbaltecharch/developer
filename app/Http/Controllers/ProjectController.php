@@ -214,24 +214,40 @@ public function getAssignedProjects()
 
 
 	public function update(Request $request, $id)
-    {
-		
-        $project = Project::find($id);
-		if (!$project) {
-            return ApiResponse::error('Project not found', [], 404);
-        }
-		$validatedData = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'project_name' => 'required|string|max:255',
-            'requirements' => 'nullable|string',
-            'budget' => 'nullable|numeric',
-            'deadline' => 'nullable|date'
-        ]);
-		//return response()->json(['message' => 'Test111']);
-		
-		$project->update($validatedData);
-		return ApiResponse::success('Project updated successfully', new ProjectResource($project));
+{
+    $project = Project::find($id);
+    if (!$project) {
+        return ApiResponse::error('Project not found', [], 404);
     }
+
+    $validatedData = $request->validate([
+        'client_id' => 'required|exists:clients,id',
+        'project_name' => 'required|string|max:255',
+       // 'requirements' => 'nullable|string',
+       // 'budget' => 'nullable|numeric',
+        //'deadline' => 'nullable|date',
+        'tags_activitys' => 'nullable|array',
+        'tags_activitys.*' => 'integer', // Each item must be an integer
+    ]);
+
+    // Update normal fields
+    $project->update([
+        'client_id' => $validatedData['client_id'],
+        'project_name' => $validatedData['project_name'],
+        //'requirements' => $validatedData['requirements'] ?? null,
+        //'budget' => $validatedData['budget'] ?? null,
+       // 'deadline' => $validatedData['deadline'] ?? null,
+    ]);
+
+    // Update tags_activitys if provided
+    if (isset($validatedData['tags_activitys'])) {
+        $project->tags_activitys = json_encode($validatedData['tags_activitys']); // store as JSON string
+        $project->save(); // save again for this change
+    }
+
+    return ApiResponse::success('Project updated successfully', new ProjectResource($project));
+}
+
 
     public function destroy($id)
     {
