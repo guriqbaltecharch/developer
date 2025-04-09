@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\Project;
 use App\Models\Client;
 use App\Models\User;
+use App\Models\ProjectUser;
+use App\Models\PerformaSheet;
 use App\Models\TagsActivity;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+
+
 
 class ProjectController extends Controller
 {
@@ -413,46 +416,97 @@ public function removeProjectManagers(Request $request)
     }
 public function GetFullProjectManangerData()
 {
-    $projects = DB::table('projects')
-        ->leftJoin('project_manager_project', 'projects.id', '=', 'project_manager_project.project_id')
-        ->leftJoin('users', 'project_manager_project.project_manager_id', '=', 'users.id')
-        ->leftJoin('clients', 'projects.client_id', '=', 'clients.id') // If client is related
-        ->leftJoin('teams as sales_team', 'projects.sales_team_id', '=', 'sales_team.id') // If sales team is related
-        ->select(
-            'projects.id as project_id',
-            'projects.project_name',
-            'projects.requirements',
-            'projects.budget',
-            'projects.deadline',
-            'clients.name as client_name',
-            'sales_team.name as sales_team_name',
-            'users.id as project_manager_id',
-            'users.name as project_manager_name'
-        )
-        ->get()
-        ->groupBy('project_id')
-        ->map(function ($items) {
-            $base = $items->first();
-            return [
-                'project_id' => $base->project_id,
-                'project_name' => $base->project_name,
-                'requirements' => $base->requirements,
-                'budget' => $base->budget,
-                'deadline' => $base->deadline,
-                'client' => $base->client_name,
-                'sales_team' => $base->sales_team_name,
-                'project_managers' => $items->map(function ($i) {
-                    return [
-                        'id' => $i->project_manager_id,
-                        'name' => $i->project_manager_name,
-                    ];
-                })->filter(fn ($pm) => $pm['id'] !== null)->unique('id')->values(),
-            ];
-        })
-        ->values(); // reset numeric keys
+    $projects = Project::select('id', 'project_name', 'total_hours', 'total_working_hours', 'project_manager_id')->get();
 
-    return ApiResponse::success('Projects fetched successfully', $projects);
+    // Get all performas that are approved
+    $approvedPerformas = PerformaSheet::where('status', 'Approved')->get();
+
+    // Calculate worked hours grouped by project_id and user_id
+    $performaHours = [];
+    foreach ($approvedPerformas as $sheet) {
+        $data = is_array($sheet->data) ? $sheet->data : json_decode($sheet->data, true);
+        if (!isset($data['project_id'], $data['time'])) {
+            continue;
+        }
+
+        $projectId = $data['project_id'];
+        $userId = $sheet->user_id;
+        $time = floatval($data['time']);
+
+        if (!isset($performaHours[$projectId][$userId])) {
+            $performaHours[$projectId][$userId] = 0;
+        }
+        $performaHours[$projectId][$userId] += $time;
+    }
+
+    $projectUserMap = DB::table('project_user')->get()->groupBy('project_id');
+
+    $users = User::select('id', 'name', 'email')->get()->keyBy('id');
+
+    $data = $projects->map(function ($project) use ($users, $projectUserMap, $performaHours) {
+        $managerIds = json_decode($project->project_manager_id, true) ?? [];
+
+        // Get users assigned to this project
+        $assignedUsers = $projectUserMap[$project->id] ?? collect();
+
+        // Group users under their manager
+        $managerUserMap = [];
+        foreach ($assignedUsers as $row) {
+            $managerId = $row->project_manager_id;
+            $userId = $row->user_id;
+
+            if (!in_array($managerId, $managerIds)) {
+                $managerIds[] = $managerId; // ensure all managers are captured
+            }
+
+            if (!isset($managerUserMap[$managerId])) {
+                $managerUserMap[$managerId] = [];
+            }
+
+            $user = $users[$userId] ?? null;
+            if ($user) {
+                $managerUserMap[$managerId][] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'worked_hours' => round($performaHours[$project->id][$user->id] ?? 0, 2)
+                ];
+            }
+        }
+
+        // Prepare manager data
+        $managers = collect($managerIds)->map(function ($managerId) use ($users, $managerUserMap) {
+            $manager = $users[$managerId] ?? null;
+            return $manager ? [
+                'id' => $manager->id,
+                'name' => $manager->name,
+                'email' => $manager->email,
+                'users' => $managerUserMap[$manager->id] ?? [],
+            ] : null;
+        })->filter()->values();
+
+        // Calculate total worked hours
+        $workedHours = 0;
+        foreach (($performaHours[$project->id] ?? []) as $userId => $hours) {
+            $workedHours += $hours;
+        }
+
+        return [
+            'project_id' => $project->id,
+            'project_name' => $project->project_name,
+            'total_hours' => (float) $project->total_hours,
+            'worked_hours' => round($workedHours, 2),
+            'remaining_hours' => max((float)$project->total_hours - $workedHours, 0),
+            'project_managers' => $managers,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $data
+    ]);
 }
+
 
 
 }
