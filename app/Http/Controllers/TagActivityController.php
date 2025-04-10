@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\TagsActivity;
 use Illuminate\Support\Facades\DB;
+use App\Http\Helpers\ApiResponse;
 
 class TagActivityController extends Controller
 {
@@ -65,5 +66,16 @@ public function updateActivityTag(Request $request, $id)
         'tag' => $updatedTag
     ]);
 }
+
+public function destroy($id)
+{
+    $tag = TagsActivity::find($id);
+    if (!$tag) {
+        return ApiResponse::error('Tag not found', [], 404);
+    }
+	$tag->delete();
+    return ApiResponse::success('Tag deleted successfully');
+}
+
 
 }
