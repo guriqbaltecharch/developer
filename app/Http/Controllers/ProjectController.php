@@ -527,5 +527,50 @@ public function GetFullProjectManangerData()
 }
 
 
+public function totaldepartmentProject()
+{
+    
+    $projects = Project::all();
+
+    $teamProjectMap = [];
+
+    foreach ($projects as $project) {
+        $managerIds = json_decode($project->project_manager_id, true);
+
+        if (empty($managerIds)) {
+            // If no manager is assigned
+            $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
+            continue;
+        }
+
+        // Fetch managers with their teams
+        $managers = User::with('team:id,name')
+            ->whereIn('id', $managerIds)
+            ->get();
+
+        // Get unique team names from assigned managers
+        $teamNames = $managers
+            ->filter(fn ($user) => $user->team)
+            ->pluck('team.name')
+            ->unique();
+
+        // If no team found even after managers
+        if ($teamNames->isEmpty()) {
+            $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
+        } else {
+            foreach ($teamNames as $teamName) {
+                $teamProjectMap[$teamName] = ($teamProjectMap[$teamName] ?? 0) + 1;
+            }
+        }
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => $teamProjectMap,
+    ]);
+}
+
+
+
 
 }
