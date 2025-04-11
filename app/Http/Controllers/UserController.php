@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Team;
 use App\Models\PerformaSheet;
 use App\Models\Project;
 use App\Models\Role;
@@ -252,9 +253,29 @@ public function GetFullProileEmployee($id)
 }
 
 
+public function getUserCountByTeam()
+{
+    $teams = Team::all(); // get all teams
+    $users = User::whereNotNull('team_id')->get();
 
+    $teamUserMap = [];
 
+    // Initialize all teams with 0
+    foreach ($teams as $team) {
+        $teamUserMap[$team->name . ' Users'] = 0;
+    }
 
+    // Count users per team
+    foreach ($users as $user) {
+        if ($user->team_id && isset($teamUserMap[$user->team->name . ' Users'])) {
+            $teamUserMap[$user->team->name . ' Users'] += 1;
+        }
+    }
 
+    return response()->json([
+        'success' => true,
+        'data' => $teamUserMap
+    ]);
+}
 
 }

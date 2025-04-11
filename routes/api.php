@@ -31,6 +31,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'show']);
 	Route::get('/getfull_proileemployee/{id}', [UserController::class, 'GetFullProileEmployee']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
+	 Route::get('/getuser-Byteam', [UserController::class, 'getUserCountByTeam']);
+	
 
     Route::apiResource('/teams', TeamController::class);
     Route::apiResource('/roles', RoleController::class);
